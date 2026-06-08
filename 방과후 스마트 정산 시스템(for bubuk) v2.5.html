@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>방과후 스마트 정산 시스템</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background:#f8f9fa; font-size:0.9rem; font-family:'Malgun Gothic',sans-serif; padding:20px; }
+        .card { box-shadow:0 4px 6px rgba(0,0,0,0.1); border:none; border-top:3px solid #0d6efd; margin-bottom:20px; background:white; }
+        .nav-tabs .nav-link { font-weight:bold; color:#495057; }
+        .nav-tabs .nav-link.active { color:#0d6efd; border-bottom:3px solid #0d6efd; background:transparent; }
+        .tbl-wrap { overflow-y:auto; }
+        .tbl-wrap table thead th { position:sticky; top:0; z-index:10; background:#e9ecef !important; text-align:center; vertical-align:middle; font-size:0.85rem; }
+        .table td { text-align:center; vertical-align:middle; padding:0.35rem; }
+        .bg-cho3 { background:#e8f4f8 !important; }
+        .bg-free { background:#eef8e8 !important; }
+        .clickable { cursor:pointer; color:#0d6efd; text-decoration:underline; font-weight:bold; }
+        .clickable:hover { color:#0a58ca; }
+        .fmt-num { text-align:right; padding:3px 5px; border:1px solid #ccc; border-radius:4px; }
+        .fmt-num:focus { border-color:#0d6efd; outline:none; }
+        .btn-cf { border-radius:20px; font-size:0.85rem; padding:0.25rem 0.75rem; border:1px solid #dee2e6; background:#fff; color:#495057; transition:0.2s; cursor:pointer; }
+        .btn-cf.active { background:#0d6efd; color:white; border-color:#0d6efd; font-weight:bold; }
+        .sub-nav .nav-link { padding:0.4rem 1rem; font-size:0.9rem; border-radius:5px 5px 0 0; background:#f1f3f5; color:#6c757d; border:1px solid #dee2e6; border-bottom:none; margin-right:2px; }
+        .sub-nav .nav-link.active { background:#fff; color:#212529; font-weight:bold; border-top:3px solid #dc3545; }
+        .input-fix { width: 100%; min-width: 150px; }
+        .step5-preview-table th, .step5-preview-table td { font-size: 0.8rem; white-space: nowrap; }
+    </style>
+</head>
+<body>
+
+<div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
+    <h4 id="sysTitle" class="fw-bold text-primary mb-0 d-flex align-items-center gap-3">
+        <span>방과후 스마트 정산 시스템 for bubuk</span>
+        <span class="badge bg-danger fs-6" id="verBadge">v2.5</span>
+    </h4>
+    <div class="d-flex align-items-center gap-3">
+        <div id="storageUsage" class="small fw-bold text-muted mb-0 bg-light px-2 py-1 rounded border">💾 용량 확인 중...</div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-warning fw-bold" onclick="maskNames()">😎 이름 마스킹</button>
+            <button class="btn btn-sm btn-dark" onclick="sysBackup()">⬇️ 데이터 백업</button>
+            <label class="btn btn-sm btn-outline-dark mb-0">⬆️ 불러오기 <input type="file" id="restoreFile" accept=".json" class="d-none"></label>
+        </div>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-3" id="myTab">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#step1">1. 분기별 기준정보</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#step2">2. 자유수강권 관리</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#step3">3. 수강생 및 환불</button></li>
+    <li class="nav-item"><button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#step4" id="tabStep4Btn">4. 정산 및 조회 📊</button></li>
+    <li class="nav-item"><button class="nav-link fw-bold text-success" data-bs-toggle="tab" data-bs-target="#step5" onclick="initStep5()">5. 문서 서식 자동생성</button></li>
+    <li class="nav-item"><button class="nav-link text-info fw-bold" data-bs-toggle="tab" data-bs-target="#step6"><i class="bi bi-book-half"></i> 6. 사용 설명서</button></li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="step1">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card p-3 mb-3 border-secondary bg-light shadow-sm">
+                    <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-gear-fill"></i> 시스템 전역 설정</h6>
+                    <div class="small fw-bold text-muted mb-1">수용비 일괄 공제 설정:</div>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="form-check form-check-inline mb-0 me-1">
+                            <input class="form-check-input border-secondary" type="radio" name="sys_fTy" id="sys_fTy_R" value="R" onchange="updateSysSet()" checked>
+                            <label class="form-check-label small" for="sys_fTy_R">비율(%)</label>
+                        </div>
+                        <div class="form-check form-check-inline mb-0">
+                            <input class="form-check-input border-secondary" type="radio" name="sys_fTy" id="sys_fTy_F" value="F" onchange="updateSysSet()">
+                            <label class="form-check-label small" for="sys_fTy_F">정액(원)</label>
+                        </div>
+                    </div>
+                    <input type="number" id="sys_fVal" class="form-control form-control-sm text-center fw-bold text-primary mb-1" value="5" oninput="updateSysSet()">
+                    <div class="small text-danger fw-bold" id="sys_fDesc" style="font-size: 0.75rem;">강사료 기준 5% 수용비 산출</div>
+                </div>
+
+                <div class="card p-3 mb-3 border-dark shadow-sm">
+                    <h6 class="fw-bold text-dark mb-3">📥 엑셀 일괄 등록</h6>
+                    <button class="btn btn-outline-dark btn-sm w-100 mb-2" onclick="dlSampleCourse()">양식 다운로드</button>
+                    <label class="btn btn-outline-secondary btn-sm w-100 mb-2 text-start">
+                        📁 파일 선택
+                        <input type="file" id="fileCourse" accept=".xlsx,.xls" class="d-none">
+                    </label>
+                    <div id="fileCourseNm" class="small text-muted mb-2 text-truncate">선택된 파일 없음</div>
+                    <button class="btn btn-dark btn-sm w-100 fw-bold" onclick="upCourse()">엑셀 업로드</button>
+                </div>
+
+                <div class="card p-3 border-primary shadow-sm">
+                    <h6 class="fw-bold text-primary mb-2">✍️ 신규 강좌 직접 등록</h6>
+                    <input type="text" id="c_nm" class="form-control form-control-sm mb-2" placeholder="강좌명">
+                    <input type="text" id="c_t" class="form-control form-control-sm fn-input mb-2" placeholder="수강료(총액)">
+                    <input type="text" id="c_b" class="form-control form-control-sm fn-input mb-2" placeholder="교재비">
+                    <input type="text" id="c_mh" class="form-control form-control-sm mb-3" placeholder="차수별 시수(8,8,8)">
+                    <button class="btn btn-primary btn-sm w-100 fw-bold" onclick="addCourse()">등록</button>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <div class="card p-3 h-100 shadow-sm">
+                    <div class="d-flex justify-content-between mb-2 align-items-center">
+                        <h6 class="fw-bold mb-0">📋 분기별 강좌 요금표 <span id="cnt_c" class="badge bg-secondary">0</span></h6>
+                        <button class="btn btn-sm btn-outline-danger" onclick="if(confirm('전체 삭제하시겠습니까?')){C={};save();renderC();}">전체 삭제</button>
+                    </div>
+                    <div class="tbl-wrap" style="max-height:650px;">
+                        <table class="table table-sm table-bordered" id="tbCourse"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="step2">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card p-3 mb-3 border-success shadow-sm">
+                    <h6 class="fw-bold text-success">📥 대상자 엑셀 업로드</h6>
+                    <button class="btn btn-outline-success btn-sm w-100 mb-2" onclick="dlSampleFree()">양식 다운로드</button>
+                    <label class="btn btn-outline-secondary btn-sm w-100 mb-2 text-start">📁 파일 선택<input type="file" id="fileFree" accept=".xlsx,.xls" class="d-none"></label>
+                    <div id="fileFreNm" class="small text-muted mb-2">선택된 파일 없음</div>
+                    <button class="btn btn-success btn-sm w-100" onclick="upFree()">엑셀 업로드</button>
+                </div>
+                <div class="card p-3 border-success shadow-sm">
+                    <h6 class="fw-bold text-success">✍️ 대상자 1명 등록</h6>
+                    <div class="d-flex gap-1 mb-2">
+                        <input type="number" id="f_g" class="form-control form-control-sm text-center" placeholder="학년">
+                        <input type="number" id="f_b" class="form-control form-control-sm text-center" placeholder="반">
+                        <input type="number" id="f_n" class="form-control form-control-sm text-center" placeholder="번호">
+                    </div>
+                    <input type="text" id="f_nm" class="form-control form-control-sm mb-2" placeholder="학생이름">
+                    <button class="btn btn-success btn-sm w-100" onclick="addFree()">등록하기</button>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="card p-3 h-100 border-success shadow-sm">
+                    <div class="d-flex justify-content-between mb-2">
+                        <h6 class="fw-bold text-success mb-0">🎖️ 확정 명단 <span id="cnt_f" class="badge bg-success">0</span></h6>
+                        <button class="btn btn-sm btn-outline-danger" onclick="if(confirm('전체 삭제?')){F=[];save();renderF();}">삭제</button>
+                    </div>
+                    <div class="tbl-wrap" style="max-height:500px;"><table class="table table-sm table-bordered text-center" id="tbFree"></table></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="step3">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card p-3 mb-3 border-primary shadow-sm">
+                    <h6 class="fw-bold text-primary">📥 명단 엑셀 일괄 등록</h6>
+                    <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="dlSampleEnroll()">양식 다운로드</button>
+                    <select id="exEnQ" class="form-select form-select-sm mb-2 border-primary fw-bold text-primary"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select>
+                    <label class="btn btn-outline-secondary btn-sm w-100 mb-2 text-start">📁 파일 선택 (다중가능)<input type="file" id="fileEnroll" accept=".xlsx,.xls" class="d-none" multiple></label>
+                    <div id="fileEnrollNm" class="small text-muted mb-2 text-truncate">선택된 파일 없음</div>
+                    <button class="btn btn-primary btn-sm w-100" onclick="upEnroll()">일괄 업로드</button>
+                </div>
+                <div class="card p-3 shadow-sm">
+                    <h6 class="fw-bold">✍️ 1명 개별 등록</h6>
+                    <div class="d-flex gap-1 mb-2"><select id="e_q" class="form-select form-select-sm w-25"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select><select id="e_c" class="form-select form-select-sm w-75"></select></div>
+                    <div class="d-flex gap-1 mb-2"><input type="number" id="e_g" class="form-control form-control-sm text-center" placeholder="학년"><input type="number" id="e_b" class="form-control form-control-sm text-center" placeholder="반"><input type="number" id="e_n" class="form-control form-control-sm text-center" placeholder="번호"></div>
+                    <input type="text" id="e_nm" class="form-control form-control-sm mb-3" placeholder="학생이름">
+                    <button class="btn btn-secondary btn-sm w-100" onclick="addEnroll()">수강생 추가</button>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="card p-3 border-secondary h-100 shadow-sm">
+                    <div class="d-flex justify-content-between mb-2 align-items-center">
+                        <h6 class="fw-bold mb-0">👥 수강 명단 및 환불관리 <span id="cnt_e" class="badge bg-primary">0</span></h6>
+                        
+                        <div class="d-flex gap-3 align-items-center">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="chkOnlyRefund" onchange="renderE()">
+                                <label class="form-check-label small fw-bold text-danger" for="chkOnlyRefund">환불/결석 학생만 보기</label>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger" onclick="if(confirm('전체 삭제?')){E=[];save();renderE();}">전체 삭제</button>
+                        </div>
+                    </div>
+                    <div class="bg-light p-2 rounded mb-3 border">
+                        <div class="small fw-bold text-muted mb-1"><i class="bi bi-funnel-fill text-primary"></i> 분기/강좌 버튼 클릭으로 다중 필터링</div>
+                        <div class="tbl-wrap" style="max-height:230px;"><table class="table table-sm table-bordered text-center align-middle mb-0 bg-white" id="tbMatrix"></table></div>
+                    </div>
+                    <div class="tbl-wrap" style="max-height:430px;"><table class="table table-sm table-bordered table-hover align-middle text-center" id="tbEnroll"></table></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="step4">
+        <div class="card p-3 border-danger shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded border">
+                <div class="d-flex gap-3 align-items-center flex-wrap">
+                    <div>
+                        <span class="fw-bold small text-muted me-2">조회 대상:</span>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-dark active" id="fBtnA" onclick="setFilt('A')">전체보기</button>
+                            <button class="btn btn-sm btn-outline-success" id="fBtnF" onclick="setFilt('F')">자유수강만</button>
+                            <button class="btn btn-sm btn-outline-primary" id="fBtnC" onclick="setFilt('C')">초3지원만</button>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="fw-bold small text-muted me-2">분기:</span>
+                        <select id="s4_q" class="form-select form-select-sm d-inline-block w-auto fw-bold text-danger border-danger" onchange="renderSetTabs()">
+                            <option value="ALL">전체</option><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-success btn-sm fw-bold" onclick="exportStep4Excel()"><i class="bi bi-download"></i> 엑셀 다운로드</button>
+            </div>
+            <ul class="nav nav-tabs sub-nav mb-3">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#s4t1" onclick="curS4Tab='STAT'">① 분기별 수강현황</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#s4t2" onclick="curS4Tab='STU'">② 학생별 상세조회</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#s4t3" onclick="curS4Tab='CRSE'">③ 강좌별 상세조회</button></li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="s4t1"><div class="tbl-wrap" style="max-height:500px;"><table class="table table-sm table-bordered text-center align-middle" style="font-size:0.8rem;"><thead><tr><th rowspan="2">강좌명</th><th rowspan="2">수강료</th><th rowspan="2">교재비</th><th rowspan="2" class="table-warning">신청인원</th><th rowspan="2" class="table-warning">수강료계</th><th rowspan="2" class="table-warning">교재비계</th><th colspan="3" class="bg-cho3">초3 맞춤형 지원비</th><th colspan="3" class="bg-free">자유수강권 지원비</th><th colspan="2" class="table-danger">수익자부담금</th></tr><tr><th class="bg-cho3">사용인원</th><th class="bg-cho3">수강료합</th><th class="bg-cho3">교재비합</th><th class="bg-free">사용인원</th><th class="bg-free">수강료합</th><th class="bg-free">교재비합</th><th class="table-danger">수강료합</th><th class="table-danger">교재비합</th></tr></thead><tbody id="tbStat"></tbody></table></div></div>
+                <div class="tab-pane fade" id="s4t2"><div class="tbl-wrap" style="max-height:500px;"><table class="table table-sm table-bordered text-center align-middle table-hover"><thead><tr><th rowspan="2" class="clickable align-middle" onclick="sortStu('DP')">학적 <span id="sort_DP"></span></th><th rowspan="2" class="clickable align-middle" onclick="sortStu('NM')">이름 <span id="sort_NM"></span></th><th rowspan="2" class="align-middle">대상</th><th colspan="2">지원금 잔여액</th><th rowspan="2" class="align-middle">분기</th><th rowspan="2" class="align-middle">강좌명</th><th rowspan="2" class="align-middle">수강료</th><th rowspan="2" class="align-middle">교재비</th><th colspan="2" class="bg-cho3">초3 공제</th><th colspan="2" class="bg-free">자유 공제</th><th rowspan="2" class="text-danger fw-bold align-middle">징수액</th></tr><tr><th class="clickable text-primary" onclick="sortStu('C')">초3잔액 <span id="sort_C"></span></th><th class="clickable text-success" onclick="sortStu('F')">자유잔액 <span id="sort_F"></span></th><th class="bg-cho3">수강료</th><th class="bg-cho3">교재비</th><th class="bg-free">수강료</th><th class="bg-free">교재비</th></tr></thead><tbody id="tbStuDtl"></tbody></table></div></div>
+                <div class="tab-pane fade" id="s4t3"><div id="cFilterBtnGroup" class="d-flex flex-wrap gap-2 mb-2 bg-light p-2 rounded"></div><div class="tbl-wrap" style="max-height:500px;"><table class="table table-sm table-bordered text-center align-middle table-hover"><thead><tr><th rowspan="2">분기</th><th rowspan="2">학적</th><th rowspan="2">이름</th><th rowspan="2">강좌명</th><th rowspan="2">수강료</th><th rowspan="2">교재비</th><th colspan="2" class="bg-cho3">초3 공제</th><th colspan="2" class="bg-free">자유 공제</th><th rowspan="2" class="text-danger fw-bold">징수액</th></tr><tr><th class="bg-cho3">수강료</th><th class="bg-cho3">교재비</th><th class="bg-free">수강료</th><th class="bg-free">교재비</th></tr></thead><tbody id="tbCrseDtl"></tbody></table></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="step5">
+        <div class="card p-3 border-success bg-light shadow-sm">
+            <h5 class="fw-bold mb-3"><i class="bi bi-printer"></i> 행정 서식 자동생성 및 출력</h5>
+            <ul class="nav nav-tabs sub-nav mb-3" id="step5Tabs">
+                <li class="nav-item"><button class="nav-link active text-success" data-bs-toggle="tab" data-bs-target="#s5t_edu" onclick="renderPreviewEdu()">🏦 수납요구서 (에듀파인)</button></li>
+                <li class="nav-item"><button class="nav-link text-info" data-bs-toggle="tab" data-bs-target="#s5t_inv" onclick="renderPreviewInvoice()">📄 교육비 청구서 (업체용)</button></li>
+                <li class="nav-item"><button class="nav-link text-danger" data-bs-toggle="tab" data-bs-target="#s5t_ref" onclick="renderPreviewRef()">💸 환불 결의 내역서</button></li>
+                <li class="nav-item"><button class="nav-link text-primary" data-bs-toggle="tab" data-bs-target="#s5t_ros" onclick="renderPreviewRoster()">📑 만능 정산 명단</button></li>
+            </ul>
+
+            <div class="tab-content bg-white border p-3 rounded shadow-sm">
+                <div class="tab-pane fade show active" id="s5t_edu">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold small">대상 분기:</span>
+                            <select id="p_q1" class="form-select form-select-sm w-auto" onchange="renderPreviewEdu()"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select>
+                        </div>
+                        <button class="btn btn-success btn-sm fw-bold px-4" onclick="exEdu()">엑셀 다운로드</button>
+                    </div>
+                    <div class="tbl-wrap border rounded" style="max-height: 400px;"><table class="table table-sm table-hover step5-preview-table mb-0 text-center"><thead class="table-success"><tr><th>시트명</th><th>학적</th><th>이름</th><th>대상금액</th></tr></thead><tbody id="prev_edu"></tbody></table></div>
+                </div>
+
+                <div class="tab-pane fade" id="s5t_inv">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="fw-bold small">분기/차수:</span>
+                            <select id="p_qInvoice" class="form-select form-select-sm w-auto border-info" onchange="renderPreviewInvoice()"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select>
+                            <select id="p_sInvoice" class="form-select form-select-sm w-auto border-info" onchange="renderPreviewInvoice()"><option value="1">1차</option><option value="2">2차</option><option value="3">3차</option><option value="4">4차</option></select>
+                        </div>
+                        <button class="btn btn-info btn-sm fw-bold text-white px-4" onclick="exInvoice()">엑셀 다운로드</button>
+                    </div>
+                    <div class="tbl-wrap border rounded" style="max-height: 500px;">
+                        <table class="table table-sm table-bordered step5-preview-table mb-0 text-center align-middle">
+                            <thead class="table-info">
+                                <tr>
+                                    <th rowspan="2">순번</th><th rowspan="2">강좌명</th>
+                                    <th colspan="3">1인당 기준액</th><th colspan="4">수익자 부담</th><th colspan="4">초3 지원</th><th colspan="4">자유수강 지원</th><th colspan="4">합계</th><th rowspan="2">비고</th>
+                                </tr>
+                                <tr>
+                                    <th>수강료</th><th>강사료</th><th>수용비</th>
+                                    <th>인원</th><th>수강료</th><th>강사료</th><th>수용비</th>
+                                    <th>인원</th><th>수강료</th><th>강사료</th><th>수용비</th>
+                                    <th>인원</th><th>수강료</th><th>강사료</th><th>수용비</th>
+                                    <th>인원</th><th>수강료</th><th>강사료</th><th>수용비</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prev_inv"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="s5t_ref">
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="small text-muted">환불 처리 명단 전체</span><button class="btn btn-danger btn-sm fw-bold px-4" onclick="exRef()">엑셀 다운로드</button>
+                    </div>
+                    <div class="tbl-wrap border rounded" style="max-height: 400px;"><table class="table table-sm table-hover step5-preview-table mb-0 text-center align-middle"><thead class="table-danger"><tr><th>분기</th><th>강좌명</th><th>학적</th><th>이름</th><th>환불(수강료)</th><th>환불(교재비)</th><th>환불사유</th></tr></thead><tbody id="prev_ref"></tbody></table></div>
+                </div>
+
+                <div class="tab-pane fade" id="s5t_ros">
+                    <div class="d-flex justify-content-between mb-3">
+                        <div class="d-flex gap-2">
+                            <select id="p_q2" class="form-select form-select-sm w-auto" onchange="renderPreviewRoster()"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select>
+                            <select id="p_tg" class="form-select form-select-sm w-auto border-primary" onchange="renderPreviewRoster()"><option value="SELF">수익자(자부담)</option><option value="CHO3">초3지원사용</option><option value="FREE">자유수강사용</option><option value="ALL">전체발생액</option></select>
+                            <select id="p_so" class="form-select form-select-sm w-auto" onchange="renderPreviewRoster()"><option value="C">강좌별 정렬</option><option value="S">학생별 정렬</option></select>
+                        </div>
+                        <button class="btn btn-primary btn-sm fw-bold px-4" onclick="exRoster()">엑셀 다운로드</button>
+                    </div>
+                    <div class="tbl-wrap border rounded" style="max-height: 400px;"><table class="table table-sm table-hover step5-preview-table mb-0 text-center"><thead class="table-primary"><tr><th>연번</th><th>학적</th><th>이름</th><th>강좌명</th><th>수강료</th><th>교재비</th><th>합계</th></tr></thead><tbody id="prev_ros"></tbody></table></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="step6">
+        <div class="card p-4 border-info bg-light" style="max-height: 750px; overflow-y: auto;">
+            <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom border-info">
+                <h5 class="fw-bold text-info mb-0"><i class="bi bi-book-half"></i> 방과후 스마트 정산 시스템 상세 매뉴얼</h5>
+                <span class="badge bg-secondary fs-6" id="manualVersion">v2.5</span>
+            </div>
+            
+            <div class="mb-4">
+                <h6 class="fw-bold text-primary mb-3"><i class="bi bi-cpu-fill"></i> 1. 시스템 자동 정산 핵심 로직 (필독)</h6>
+                <div class="p-3 bg-white border rounded shadow-sm lh-lg text-secondary" style="font-size: 0.95rem;">
+                    <strong>[지원금 인식 및 한도]</strong><br>
+                    * <strong>자유수강권:</strong> 2스텝에서 대상자로 등록되면 1인당 연간 <strong>60만 원</strong>의 한도가 부여됩니다.<br>
+                    * <strong>초3 맞춤형 지원:</strong> 별도 명단 등록 없이, 3스텝 수강생 등록 시 학년이 <strong>'3'</strong>이면 자동 인식하여 연간 <strong>50만 원</strong>의 한도를 부여합니다.<br><br>
+                    <strong>[수용비 및 강사료 자동 분리 공식]</strong><br>
+                    1스텝에서 설정한 수용비 방식에 따라 5스텝 청구서가 영향을 받습니다. 비율(%) 선택 시 <strong>강사료 기준으로 산출</strong>됩니다. (예: 5% 설정 시, 시스템은 <code>수강료 ÷ 1.05 = 강사료</code>, <code>수강료 - 강사료 = 수용비</code> 공식으로 자동 분할합니다.)
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h6 class="fw-bold text-success mb-3"><i class="bi bi-list-ol"></i> 2. 단계별 업무 처리 절차</h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="p-3 bg-white border rounded shadow-sm h-100">
+                            <strong class="text-dark">STEP 1. 분기별 기준정보</strong>
+                            <p class="small text-muted mt-2 mb-0">좌측 상단에서 수용비를 세팅하고, [엑셀 일괄 등록]에서 양식 다운로드 및 파일을 선택하여 업로드합니다. 강사료와 수용비가 분할된 내역을 우측 표에서 즉시 확인 가능합니다.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-white border rounded shadow-sm h-100">
+                            <strong class="text-success">STEP 2. 자유수강권 관리</strong>
+                            <p class="small text-muted mt-2 mb-0">올해 자유수강권 지원 학생 명단을 등록하여 60만 원 한도를 자동 적용합니다.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="p-3 bg-white border rounded shadow-sm">
+                            <strong class="text-primary">STEP 3. 수강생 및 환불 (실무 입력)</strong>
+                            <p class="small text-muted mt-2 mb-0">수강생을 등록하고 결석/포기가 발생하면 <strong>[환불/수정]</strong> 버튼을 누릅니다. 환불을 처리하면 <strong>시스템이 남은 시수를 자동으로 역산하여 `[포기] 2차 0H` 형태로 비고란에 기록</strong>합니다. 또한 <strong>[☑️ 환불/결석 학생만 보기]</strong> 스위치를 통해 환불자만 빠르게 조회할 수 있습니다.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-white border rounded shadow-sm h-100">
+                            <strong class="text-danger">STEP 4. 정산 및 조회</strong>
+                            <p class="small text-muted mt-2 mb-0">최종 징수액과 지원금 차감 내역을 확인합니다. 표 제목을 클릭해 원하는 조건으로 정렬하세요.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-white border rounded shadow-sm h-100">
+                            <strong class="text-warning">STEP 5. 문서 서식 자동생성</strong>
+                            <p class="small text-muted mt-2 mb-0">청구서 탭에서 분기/차수를 선택하면 수익자·초3·자유수강 각각의 재원에 대해 <strong>수강료, 강사료, 수용비가 정확히 분할 산출</strong>되어 엑셀 22열 양식으로 추출됩니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="mdlRef">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-danger text-white py-2">
+                <h6 class="modal-title fw-bold"><i class="bi bi-calculator"></i> 수강료 다중 환불 계산기</h6>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="r_idx">
+                <div class="alert alert-light border p-2 mb-3 text-center">
+                    <span id="r_nm" class="text-primary fw-bold fs-6"></span> 학생 ·
+                    <span id="r_c" class="fw-bold"></span>
+                </div>
+                <div class="mb-3">
+                    <label class="small fw-bold text-muted mb-1">분기 총 결제(기준) 금액</label>
+                    <div class="d-flex gap-2">
+                        <div class="input-group input-group-sm"><span class="input-group-text">수강료</span><input type="text" id="r_ot" class="form-control text-end bg-light" readonly></div>
+                        <div class="input-group input-group-sm"><span class="input-group-text">교재비</span><input type="text" id="r_ob" class="form-control text-end bg-light" readonly></div>
+                    </div>
+                </div>
+                <div class="p-3 bg-light rounded border mb-3">
+                    <label class="small fw-bold text-dark mb-2">새로운 환불 건 추가</label>
+                    <div class="row g-2 mb-2">
+                        <div class="col-4">
+                            <div class="input-group input-group-sm"><span class="input-group-text">총시수</span><input type="number" id="r_qh" class="form-control text-center bg-light" readonly></div>
+                        </div>
+                        <div class="col-4">
+                            <div class="input-group input-group-sm" title="월별 시수가 다르면 쉼표로 구분"><span class="input-group-text">차수별</span><input type="text" id="r_mh" class="form-control text-center bg-white" placeholder="예: 7,6,8"></div>
+                        </div>
+                        <div class="col-4">
+                            <div class="input-group input-group-sm"><span class="input-group-text bg-warning">결석/진행</span><input type="number" id="r_ah" class="form-control text-center fw-bold border-warning bg-white" value="0"></div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <select id="r_type" class="form-select form-select-sm border-danger">
+                            <option value="BEFORE">수강 개시 전 (전액 반환)</option>
+                            <option value="DISEASE">결석/감염병 등 (입력한 시수만큼 일할 반환)</option>
+                            <option value="STUDENT">학습자 포기 (진행 시수 기준 구간 반환)</option>
+                        </select>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="r_bk">
+                        <label class="form-check-label small fw-bold text-danger" for="r_bk">교재/재료비도 반환 (미사용 시)</label>
+                    </div>
+                    
+                    <div class="alert alert-info py-2 px-3 mt-3 mb-2 text-center" style="font-size: 0.85rem;">
+                        <span class="fw-bold">💡 실시간 예상 환불액</span><br>
+                        수강료: <strong id="live_rt" class="text-danger fs-6">0</strong>원 / 
+                        교재비: <strong id="live_rb" class="text-danger fs-6">0</strong>원
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-2">
+                        <button class="btn btn-dark btn-sm fw-bold" onclick="addRfToTemp()">+ 환불 내역 리스트에 추가</button>
+                    </div>
+                </div>
+                <label class="small fw-bold text-muted mb-1">누적 환불 내역 리스트</label>
+                <div class="table-responsive mb-3 border rounded bg-white" style="max-height: 150px; overflow-y: auto;">
+                    <table class="table table-sm table-bordered text-center align-middle mb-0" style="font-size:0.85rem;">
+                        <thead class="table-light"><tr><th>사유(진행상태)</th><th>시수</th><th>수강료 환불</th><th>교재비 환불</th><th>삭제</th></tr></thead>
+                        <tbody id="rfListBody"></tbody>
+                    </table>
+                </div>
+                <div class="bg-danger bg-opacity-10 p-3 text-center rounded border border-danger">
+                    <div class="d-flex justify-content-around">
+                        <span>총 누적 환불 (수강료)<br><strong id="r_rt" class="text-danger fs-4">0</strong>원</span>
+                        <span>총 누적 환불 (교재비)<br><strong id="r_rb" class="text-danger fs-4">0</strong>원</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light d-flex justify-content-between">
+                <button class="btn btn-outline-secondary" onclick="clearAllRfs()">모든 내역 비우기(초기화)</button>
+                <div>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button class="btn btn-danger fw-bold px-4" onclick="applyRfFinal()">최종 적용</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="mdlStu">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-dark text-white py-2">
+                <h6 class="modal-title fw-bold" id="stuMdlTit">학생 상세 내역</h6>
+                <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" id="stuMdlBody"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+'use strict';
+
+const APP_NAME = '방과후 스마트 정산 시스템 for bubuk';
+
+const $  = id => document.getElementById(id);
+const val = id => $(id).value.trim();
+const num = v  => parseInt(String(v).replace(/,/g,'')) || 0;
+const fmt = n  => Number(n||0).toLocaleString();
+const uid = (g,b,n,nm) => `${+g||0}-${+b||0}-${+n||0}-${String(nm||'').trim()}`;
+const dsp = (g,b,n)    => `${+g||0}-${+b||0}-${+n||0}`;
+
+function readFileAsArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = e => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('파일 읽기 실패'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = e => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('파일 읽기 실패'));
+        reader.readAsText(file, 'utf-8');
+    });
+}
+function parseXlsx(buffer) {
+    const wb = XLSX.read(new Uint8Array(buffer), {type:'array'});
+    return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+}
+
+// 전역 데이터
+let C={}, F=[], E=[], Ld={}, Hs=[];
+let f_eq='ALL', f_ec='ALL';
+let s4_filt='A', curS4Tab='STAT', s4_cFilter='ALL';
+let stuSortCol = '', stuSortAsc = false; 
+let mdlR, mdlS, curEditIdx = -1, tempRfs = [];
+let SysSet = { fTy: 'R', fVal: 5 }; 
+const KEY = 'bgh_v36';
+
+function loadData() {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return;
+    try {
+        const d = JSON.parse(raw);
+        C = d.C || {};
+        SysSet = d.SysSet || { fTy: 'R', fVal: 5 };
+        F = (d.F || []).map(x => ({ g: +(x.g||0), b: +(x.b||0), n: +(x.n||0), name: String(x.name||'') }));
+        E = (d.E || []).map(x => {
+            let refs = x.refunds || [];
+            if (refs.length === 0 && ((x.rT || 0) > 0 || (x.rB || 0) > 0)) {
+                refs.push({ tyNm: '이전기록', ah: 0, rt: +(x.rT || 0), rb: +(x.rB || 0) });
+            }
+            return {
+                q: +(x.q||1), g: +(x.g||0), b: +(x.b||0), n: +(x.n||0), name: String(x.name||''), course: String(x.course||''),
+                cT: (x.cT != null) ? +x.cT : null, cB: (x.cB != null) ? +x.cB : null,
+                rT: +(x.rT||0), rB: +(x.rB||0), mm: String(x.mm||''), refunds: refs
+            };
+        });
+    } catch(e) { console.error('데이터 로딩 실패:', e); }
+}
+
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify({C, F, E, SysSet})); updateStorageUsage(); } catch(e) { alert('저장 공간이 부족합니다.'); } };
+
+// 💡 강사료 연산 핵심 모듈 ($S = I + 0.05I$)
+window.getSplitAmts = function(totalS) {
+    if (totalS <= 0) return { inst: 0, mgmt: 0 };
+    if (SysSet.fTy === 'R') {
+        let inst = Math.round((totalS / (1 + SysSet.fVal / 100)) / 10) * 10;
+        return { inst: inst, mgmt: totalS - inst };
+    } else {
+        let mgmt = Math.round(SysSet.fVal / 10) * 10;
+        return { inst: totalS - mgmt, mgmt: mgmt };
+    }
+};
+
+window.updateSysSet = function() {
+    SysSet.fTy = $('sys_fTy_R').checked ? 'R' : 'F';
+    SysSet.fVal = num($('sys_fVal').value);
+    $('sys_fDesc').textContent = SysSet.fTy === 'R' ? `강사료 기준 ${SysSet.fVal}% 수용비 산출` : `모든 강좌 수강료에서 ${fmt(SysSet.fVal)}원 공제`;
+    save(); renderC(); 
+};
+
+function applySysSetUI() {
+    if(SysSet.fTy === 'R') $('sys_fTy_R').checked = true; else $('sys_fTy_F').checked = true;
+    $('sys_fVal').value = SysSet.fVal;
+    $('sys_fDesc').textContent = SysSet.fTy === 'R' ? `강사료 기준 ${SysSet.fVal}% 수용비 산출` : `모든 강좌 수강료에서 ${fmt(SysSet.fVal)}원 공제`;
+}
+
+window.maskNames = function() {
+    if(!confirm('모든 학생의 이름을 마스킹(블라인드) 처리하시겠습니까? (되돌릴 수 없으니 반드시 백업을 먼저 하세요!)')) return;
+    function maskName(nm) {
+        if (!nm) return nm;
+        if (nm.length === 2) return nm[0] + '*';
+        if (nm.length >= 3) return nm[0] + '*'.repeat(nm.length - 2) + nm.slice(-1);
+        return nm;
+    }
+    F.forEach(s => s.name = maskName(s.name)); E.forEach(s => s.name = maskName(s.name));
+    save(); location.reload();
+};
+
+function sysBackup() {
+    const blob = new Blob([JSON.stringify({C, F, E, SysSet})], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `방과후정산_백업_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function updateStorageUsage() {
+    const el = $('storageUsage'); if (!el) return;
+    const rawData = localStorage.getItem(KEY) || '';
+    const percent = ((rawData.length * 2) / (5 * 1024 * 1024) * 100).toFixed(1);
+    el.innerHTML = `💾 로컬 저장소: <span class="text-success">${((rawData.length * 2) / 1024).toFixed(1)} KB</span> / 5120 KB (${percent}%)`;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    loadData(); applySysSetUI(); updateStorageUsage();
+
+    document.addEventListener('input', e => {
+        if (e.target.classList.contains('fn-input') || e.target.classList.contains('fmt-num')) {
+            const v = e.target.value.replace(/\D/g,''); e.target.value = v ? fmt(v) : '';
+        }
+    });
+
+    $('restoreFile').addEventListener('change', async function() {
+        const file = this.files[0]; if (!file) return;
+        if (!confirm('현재 데이터를 완전히 덮어씁니다. 계속하시겠습니까?')) { this.value = ''; return; }
+        try {
+            const text = await readFileAsText(file); const d = JSON.parse(text);
+            C = d.C || {}; SysSet = d.SysSet || { fTy: 'R', fVal: 5 };
+            F = (d.F || []).map(x => ({ g: +(x.g ?? 0), b: +(x.b ?? 0), n: +(x.n ?? 0), name: String(x.name || '') }));
+            E = (d.E || []).map(x => ({
+                q: +(x.q || 1), g: +(x.g ?? 0), b: +(x.b ?? 0), n: +(x.n ?? 0), name: String(x.name || ''), course: String(x.course || ''),
+                cT: (x.cT != null) ? +x.cT : null, cB: (x.cB != null) ? +x.cB : null, rT: +(x.rT || 0), rB: +(x.rB || 0), mm: String(x.mm || ''), refunds: x.refunds || []
+            }));
+            save(); alert('✅ 불러오기 완료! 화면을 새로고침합니다.'); location.reload();
+        } catch(err) { alert('❌ 파일 오류: 올바른 백업 파일인지 확인해 주세요.'); } finally { this.value = ''; }
+    });
+
+    $('fileCourse').addEventListener('change', function() { $('fileCourseNm').textContent = this.files[0]?.name || '선택된 파일 없음'; });
+    $('fileFree').addEventListener('change', function() { $('fileFreNm').textContent = this.files[0]?.name || '선택된 파일 없음'; });
+    $('fileEnroll').addEventListener('change', function() { $('fileEnrollNm').textContent = this.files.length > 1 ? `${this.files.length}개 파일 선택됨` : (this.files[0]?.name || '선택된 파일 없음'); });
+
+    $('tabStep4Btn').addEventListener('click', () => autoRunSet(false));
+
+    mdlR = new bootstrap.Modal($('mdlRef')); mdlS = new bootstrap.Modal($('mdlStu'));
+    renderC(); renderF(); renderE();
+});
+
+// =====================================================
+// STEP 1 : 강좌 정보 로직
+// =====================================================
+window.dlSampleCourse = function() {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{강좌명:'창의로봇', 수강료:150000, 교재비:50000, 차수별시수:'8,8,8'}]), '강좌목록');
+    XLSX.writeFile(wb, '강좌정보_양식.xlsx');
+};
+
+window.upCourse = async function() {
+    const file = $('fileCourse').files[0]; if (!file) { alert('파일을 선택해주세요.'); return; }
+    try {
+        const buf = await readFileAsArrayBuffer(file); const rows = parseXlsx(buf);
+        if (!rows.length) { alert('엑셀에 데이터가 없습니다.'); return; }
+        let added = 0, tot = 0;
+        rows.forEach(row => {
+            const nm = String(row['강좌명'] || row['과목명'] || row['부서명'] || '').trim(); if (!nm) return;
+            tot++; const t = num(row['수강료'] || row['강사비'] || 0), b = num(row['교재비'] || row['재료비'] || 0);
+            const mh = String(row['차수별시수'] || row['시수'] || '8,8,8').trim(); 
+            C[nm] = {1:{t,b,mh}, 2:{t,b,mh}, 3:{t,b,mh}, 4:{t,b,mh}}; added++;
+        });
+        save(); renderC(); alert(`✅ 강좌 업로드 완료\n- 전체: ${tot}건\n- 등록: ${added}건`);
+    } catch(err) { alert('❌ 엑셀 처리 오류\n' + err.message); } 
+    finally { $('fileCourse').value = ''; if($('fileCourseNm')) $('fileCourseNm').textContent = '선택된 파일 없음'; }
+};
+
+window.addCourse = function() {
+    const nm = val('c_nm'); if (!nm) return;
+    const t = num(val('c_t')), b = num(val('c_b')), mh = val('c_mh') || '8,8,8';
+    C[nm] = {1:{t,b,mh}, 2:{t,b,mh}, 3:{t,b,mh}, 4:{t,b,mh}};
+    save(); renderC(); ['c_nm','c_t','c_b','c_mh'].forEach(id => $(id).value = ''); $('c_nm').focus();
+};
+
+window.updateC = function(nm, q, k, el) {
+    if (!C[nm] || !C[nm][q]) return;
+    if (k === 'mh') C[nm][q][k] = el.value.trim(); else { C[nm][q][k] = num(el.value); el.value = fmt(C[nm][q][k]); }
+    save(); if(k === 't') renderC();
+};
+
+window.delCourse = function(nm) { if(confirm(`'${nm}' 강좌를 삭제하시겠습니까?`)) { delete C[nm]; save(); renderC(); } };
+
+function renderC() {
+    const keys = Object.keys(C); $('cnt_c').textContent = keys.length;
+    if (!keys.length) { $('tbCourse').innerHTML = '<tbody><tr><td colspan="20" class="text-muted py-3">등록된 강좌가 없습니다.</td></tr></tbody>'; safeRenderMatrix(); safeRenderS4CourseFilter(); updateCourseSelect(); return; }
+    
+    let h = `<thead class="table-light"><tr><th rowspan="2" class="align-middle">강좌명</th>`;
+    [1,2,3,4].forEach(q => h += `<th colspan="5" style="border-left:2px solid #aaa">${q}분기</th>`);
+    h += `<th rowspan="2" class="align-middle">삭제</th></tr><tr>`;
+    [1,2,3,4].forEach(() => h += `<th style="border-left:2px solid #aaa">수강료(입력)</th><th class="text-primary">강사료(자동)</th><th class="text-danger">수용비(자동)</th><th>교재비</th><th>시수</th>`);
+    h += `</tr></thead><tbody>`;
+    
+    keys.forEach(nm => {
+        const safe = nm.replace(/'/g, "\\'"); h += `<tr><td class="fw-bold align-middle">${nm}</td>`;
+        [1,2,3,4].forEach(q => {
+            const d = C[nm][q] || {t:0, b:0, mh:'8,8,8'};
+            const splitAmts = getSplitAmts(d.t); 
+            h += `<td style="border-left:2px solid #aaa"><input type="text" class="fmt-num" style="width:75px;" value="${fmt(d.t)}" onblur="updateC('${safe}',${q},'t',this)"></td>
+                  <td class="align-middle text-primary fw-bold text-center" style="font-size:0.8rem;">${fmt(splitAmts.inst)}</td>
+                  <td class="align-middle text-danger fw-bold text-center" style="font-size:0.8rem;">${fmt(splitAmts.mgmt)}</td>
+                  <td><input type="text" class="fmt-num text-secondary" style="width:75px;" value="${fmt(d.b)}" onblur="updateC('${safe}',${q},'b',this)"></td>
+                  <td><input type="text" class="form-control form-control-sm text-center px-1" style="width:50px; font-size:0.8rem;" value="${d.mh||'8,8,8'}" onblur="updateC('${safe}',${q},'mh',this)"></td>`;
+        });
+        h += `<td class="align-middle"><button class="btn btn-sm btn-outline-danger py-0" onclick="delCourse('${safe}')">삭제</button></td></tr>`;
+    });
+    $('tbCourse').innerHTML = h + '</tbody>';
+    safeRenderMatrix(); safeRenderS4CourseFilter(); updateCourseSelect();
+}
+
+function updateCourseSelect() { $('e_c').innerHTML = '<option value="">강좌선택</option>' + Object.keys(C).map(nm => `<option value="${nm}">${nm}</option>`).join(''); }
+
+// =====================================================
+// STEP 2 : 자유수강권 명단 로직
+// =====================================================
+window.dlSampleFree = function() {
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{학년:1, 반:1, 번호:1, 이름:'홍길동'}]), '명단'); XLSX.writeFile(wb, '자유수강권_명단양식.xlsx');
+};
+window.upFree = async function() {
+    const file = $('fileFree').files[0]; if (!file) return;
+    try {
+        const buf = await readFileAsArrayBuffer(file); const rows = parseXlsx(buf); let added = 0;
+        rows.forEach(row => {
+            const nm = String(row['이름']||row['학생이름']||row['성명']||'').trim(); if (!nm) return;
+            const g = num(row['학년']), b = num(row['반']), n = num(row['번호']), key = uid(g, b, n, nm);
+            if (F.some(x => uid(x.g, x.b, x.n, x.name) === key)) return;
+            F.push({g, b, n, name: nm}); added++;
+        });
+        save(); renderF(); alert(`✅ 명단 업로드 완료 (신규: ${added}건)`);
+    } catch(err) { alert('❌ 오류\n' + err.message); } finally { $('fileFree').value = ''; $('fileFreNm').textContent = '선택된 파일 없음'; }
+};
+window.addFree = function() {
+    const nm = val('f_nm'); if (!nm) return;
+    F.push({g:num(val('f_g')), b:num(val('f_b')), n:num(val('f_n')), name:nm});
+    save(); renderF(); ['f_n','f_nm'].forEach(id => $(id).value = ''); $('f_n').focus();
+};
+window.delF = function(i) { F.splice(i,1); save(); renderF(); };
+function renderF() {
+    $('cnt_f').textContent = F.length;
+    const tbody = F.map((f,i) => `<tr><td>${dsp(f.g,f.b,f.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(f.g,f.b,f.n,f.name).replace(/'/g,"\\'")}')">${f.name}</span></td><td class="text-success fw-bold">600,000</td><td><button class="btn btn-sm btn-outline-danger py-0" onclick="delF(${i})">삭제</button></td></tr>`).join('');
+    $('tbFree').innerHTML = `<thead class="table-light"><tr><th>학적</th><th>이름</th><th>지원액</th><th>관리</th></tr></thead><tbody>${tbody}</tbody>`;
+}
+
+// =====================================================
+// STEP 3 : 수강생 및 환불 관리 로직
+// =====================================================
+window.dlSampleEnroll = function() {
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{학년:1, 반:1, 번호:1, 이름:'홍길동', 강좌명:'창의로봇', 수강료:'', 교재비:'', 비고:''}]), '명단'); XLSX.writeFile(wb, '수강명단_양식.xlsx');
+};
+window.upEnroll = async function() {
+    const files = Array.from($('fileEnroll').files); if (!files.length) return;
+    const q = num(val('exEnQ')); const exist = new Set(E.map(e => `${e.q}_${e.course}_${uid(e.g,e.b,e.n,e.name)}`)); let added = 0;
+    for (const file of files) {
+        const buf = await readFileAsArrayBuffer(file); const rows = parseXlsx(buf);
+        for (const row of rows) {
+            const course = String(row['강좌명']||row['과목명']||'').trim(), nm = String(row['이름']||row['성명']||'').trim();
+            if (!course || !nm || !C[course]) continue;
+            const g = num(row['학년']), b = num(row['반']), n = num(row['번호']), id = `${q}_${course}_${uid(g,b,n,nm)}`;
+            if (exist.has(id)) continue;
+            E.push({ q, g, b, n, name: nm, course, cT: row['수강료'] ? num(row['수강료']) : (row['강사비'] ? num(row['강사비']) : null), cB: row['교재비'] ? num(row['교재비']) : null, rT: 0, rB: 0, mm: String(row['비고']||'').trim(), refunds: [] });
+            exist.add(id); added++;
+        }
+    }
+    save(); renderE(); alert(`✅ 수강 명단 업로드 완료 (신규: ${added}건)`); $('fileEnroll').value = ''; $('fileEnrollNm').textContent = '선택된 파일 없음';
+};
+window.addEnroll = function() {
+    if(!val('e_c') || !val('e_nm')) return;
+    E.push({ q: num(val('e_q')), g: num(val('e_g')), b: num(val('e_b')), n: num(val('e_n')), name: val('e_nm'), course: val('e_c'), cT: null, cB: null, rT: 0, rB: 0, mm: '', refunds: [] });
+    save(); renderE(); $('e_nm').value = ''; $('e_n').value = ''; $('e_n').focus();
+};
+window.delE = function(i) { if(confirm('삭제하시겠습니까?')) { E.splice(i,1); save(); renderE(); } };
+window.upE = function(i, k, el) { E[i][k] = el.value.trim() === '' ? null : num(el.value); save(); };
+window.upM = function(i, el) { E[i].mm = el.value; save(); };
+
+function safeRenderMatrix() { if ($('tbMatrix')) renderEFilters(); }
+window.toggleQ = function(q) { f_eq = (f_eq == q) ? 'ALL' : String(q); renderE(); };
+window.toggleC = function(c) { f_ec = (f_ec === c) ? 'ALL' : c; renderE(); };
+function renderEFilters() {
+    const el = $('tbMatrix'); if (!el) return; const cKeys = Object.keys(C).sort();
+    if (!cKeys.length) { el.innerHTML = "<tr><td class='text-muted py-2'>등록된 강좌가 없습니다.</td></tr>"; return; }
+    const stat = {}; cKeys.forEach(c => { stat[c] = {1:0,2:0,3:0,4:0,tot:0}; }); const qTot = {1:0,2:0,3:0,4:0,tot:0};
+    E.forEach(e => { if (!stat[e.course]) return; stat[e.course][e.q]++; stat[e.course].tot++; qTot[e.q]++; qTot.tot++; });
+    let h = `<thead class="table-light"><tr><th><button class="btn btn-sm btn-dark w-100" onclick="f_eq='ALL';f_ec='ALL';renderE();"><i class="bi bi-arrow-clockwise"></i> 전체</button></th>`;
+    cKeys.forEach(c => { h += `<th style="min-width:90px"><button class="btn btn-sm w-100 ${f_ec === c ? 'btn-primary fw-bold' : 'btn-outline-primary'}" onclick="toggleC('${c.replace(/'/g,"\\'")}')">${c}</button></th>`; });
+    h += `<th class="bg-secondary text-white align-middle">분기계</th></tr></thead><tbody>`;
+    [1,2,3,4].forEach(q => {
+        h += `<tr><td><button class="btn btn-sm w-100 ${String(f_eq) === String(q) ? 'btn-primary fw-bold' : 'btn-outline-primary'}" onclick="toggleQ(${q})">${q}분기</button></td>`;
+        cKeys.forEach(c => { const bg = ((String(f_eq)===String(q) && f_ec===c) || (String(f_eq)===String(q) && f_ec==='ALL') || (f_eq==='ALL' && f_ec===c)) ? 'bg-primary bg-opacity-10 text-primary fw-bold' : ''; h += `<td class="align-middle ${bg}">${stat[c][q] || '-'}</td>`; });
+        h += `<td class="fw-bold bg-light">${qTot[q]}</td></tr>`;
+    });
+    h += `<tr class="table-dark"><td class="fw-bold">강좌계</td>`; cKeys.forEach(c => { h += `<td>${stat[c].tot}</td>`; }); h += `<td class="text-warning fw-bold">${qTot.tot}</td></tr></tbody>`;
+    el.innerHTML = h;
+}
+
+// 💡 3스텝 환불 명단 토글
+function renderE() {
+    $('cnt_e').textContent = E.length; renderEFilters();
+    const onlyRef = $('chkOnlyRefund')?.checked;
+    
+    const ls = E.map((e,i) => ({...e,_i:i})).filter(e => {
+        if(f_eq !== 'ALL' && String(e.q) !== String(f_eq)) return false;
+        if(f_ec !== 'ALL' && e.course !== f_ec) return false;
+        if(onlyRef && (!e.refunds || e.refunds.length === 0)) return false;
+        return true;
+    }).sort((a,b) => a.q - b.q);
+
+    let h = `<thead class="table-light"><tr><th>분기</th><th>학적</th><th>이름</th><th>강좌명</th><th>수강료</th><th>교재비</th><th>환불/비고</th><th>관리</th></tr></thead><tbody>`;
+    ls.forEach(e => {
+        const base = C[e.course]?.[e.q] || {t:0, b:0}; const t = (e.cT !== null && e.cT !== undefined) ? e.cT : base.t; const b = (e.cB !== null && e.cB !== undefined) ? e.cB : base.b;
+        const hasR = e.refunds && e.refunds.length > 0;
+        const btnR = `<button class="btn btn-sm ${hasR ? 'btn-warning fw-bold text-dark' : 'btn-outline-secondary'} py-1 px-2 me-1" onclick="opR(${e._i})"><i class="bi bi-calculator"></i> 환불/수정</button>`;
+        h += `<tr><td><span class="badge bg-secondary">${e.q}분기</span></td><td>${dsp(e.g,e.b,e.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(e.g,e.b,e.n,e.name).replace(/'/g,"\\'")}')">${e.name}</span></td><td class="text-primary fw-bold">${e.course}</td><td><input class="fmt-num ${e.cT!==null?'text-primary fw-bold':''}" value="${fmt(t)}" onblur="upE(${e._i},'cT',this)"></td><td><input class="fmt-num ${e.cB!==null?'text-primary fw-bold':''}" value="${fmt(b)}" onblur="upE(${e._i},'cB',this)"></td><td><input class="form-control form-control-sm input-fix px-1" value="${e.mm||''}" onblur="upM(${e._i},this)"></td><td>${btnR}<button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="delE(${e._i})"><i class="bi bi-trash"></i></button></td></tr>`;
+    });
+    $('tbEnroll').innerHTML = h + '</tbody>';
+}
+
+// =====================================================
+// 다중/누적 환불 계산 로직 (+실시간 갱신 & 역산)
+// =====================================================
+window.opR = function(i) {
+    const e = E[i]; curEditIdx = i; tempRfs = JSON.parse(JSON.stringify(e.refunds || []));
+    const base = C[e.course]?.[e.q] || {t:0, b:0, mh:'8,8,8'};
+    $('r_idx').value = i; $('r_nm').textContent = e.name; $('r_c').textContent = `${e.q}분기 ${e.course}`;
+    $('r_ot').value = fmt(base.t); $('r_ob').value = fmt(base.b); $('r_mh').value = base.mh || '8,8,8'; $('r_ah').value = 0; $('r_type').value = 'DISEASE'; $('r_bk').checked = false;
+    updateR_QH(); renderRfList(); updateLivePreview(); mdlR.show();
+};
+
+function updateR_QH() {
+    const mhArr = ($('r_mh').value || '8').split(',').map(x => num(x)).filter(x => x > 0); $('r_qh').value = mhArr.reduce((sum, v) => sum + v, 0);
+    updateLivePreview();
+}
+$('r_mh').addEventListener('input', updateR_QH);
+
+// 💡 실시간 예상액 업데이트
+function updateLivePreview() {
+    const { rt, rb } = calculateCurrentRf();
+    $('live_rt').textContent = fmt(rt);
+    $('live_rb').textContent = fmt(rb);
+}
+['r_ah', 'r_type', 'r_bk', 'r_ot', 'r_ob'].forEach(id => {
+    $(id).addEventListener('input', updateLivePreview);
+    $(id).addEventListener('change', updateLivePreview);
+});
+
+function calculateCurrentRf() {
+    const mhArr = ($('r_mh').value || '8').split(',').map(x => num(x)).filter(x => x > 0); if (mhArr.length === 0) mhArr.push(8);
+    const qh = mhArr.reduce((sum, v) => sum + v, 0); let ah = num($('r_ah').value) || 0; 
+    const ot = num(val('r_ot')), ob = num(val('r_ob')), ty = val('r_type'); let rt = 0, rb = $('r_bk').checked ? ob : 0; 
+    if (ty === 'BEFORE') { rt = ot; } else if (ty === 'DISEASE') { rt = (ot / qh) * ah; } else if (ty === 'STUDENT') {
+        const totalMonths = mhArr.length; const monthlyT = ot / totalMonths; let currentMonthIdx = 0, remainingAh = ah;    
+        for (let i = 0; i < totalMonths; i++) { if (remainingAh >= mhArr[i]) { remainingAh -= mhArr[i]; currentMonthIdx++; } else { break; } }
+        if (currentMonthIdx < totalMonths) {
+            const currentMonthTotalHours = mhArr[currentMonthIdx]; 
+            if (remainingAh > 0) { const ratio = remainingAh / currentMonthTotalHours; if (ratio <= 1/3) rt += monthlyT * (2/3); else if (ratio <= 1/2) rt += monthlyT * (1/2); } else { rt += monthlyT; }
+            for (let i = currentMonthIdx + 1; i < totalMonths; i++) { rt += monthlyT; }
+        }
+    }
+    return { rt: Math.round(rt / 10) * 10, rb };
+}
+
+window.addRfToTemp = function() {
+    const { rt, rb } = calculateCurrentRf(); const ot = num(val('r_ot')), ob = num(val('r_ob')), ty = val('r_type'), ah = num($('r_ah').value);
+    if (rt === 0 && rb === 0) { alert('산출된 환불 금액이 0원입니다.'); return; }
+    const curTotT = tempRfs.reduce((sum, r) => sum + r.rt, 0); const curTotB = tempRfs.reduce((sum, r) => sum + r.rb, 0);
+    if (curTotT + rt > ot || curTotB + rb > ob) { alert('❌ 초과 환불 오류!\n추가하려는 금액이 분기 기준 금액을 초과합니다.'); return; }
+    
+    // 💡 환불 시수 기반 역산 로직
+    const mhArr = ($('r_mh').value || '8').split(',').map(x => num(x)).filter(x => x > 0);
+    let progStr = '';
+    if (ty === 'STUDENT' || ty === 'DISEASE') {
+        let remain = ah, sIdx = 0;
+        for (let i = 0; i < mhArr.length; i++) {
+            if (remain >= mhArr[i] && i < mhArr.length - 1) {
+                if (remain === mhArr[i]) { remain = 0; sIdx = i + 1; break; }
+                remain -= mhArr[i]; sIdx++;
+            } else { break; }
+        }
+        progStr = `${sIdx + 1}차 ${remain}H`;
+    }
+    
+    const tyNmBase = {'BEFORE':'개시전', 'DISEASE':'결석', 'STUDENT':'포기'}[ty] || '';
+    const memoStr = ty === 'BEFORE' ? `[${tyNmBase}]` : `[${tyNmBase}] ${progStr}`;
+    
+    tempRfs.push({ ty, tyNm: memoStr, ah, rt, rb }); 
+    $('r_ah').value = 0; $('r_bk').checked = false; 
+    renderRfList(); updateLivePreview();
+};
+
+window.removeTempRf = function(idx) { tempRfs.splice(idx, 1); renderRfList(); updateLivePreview(); };
+window.clearAllRfs = function() { if(confirm('모든 누적 환불 내역을 삭제하시겠습니까?')) { tempRfs = []; renderRfList(); updateLivePreview(); } };
+
+function renderRfList() {
+    let totRt = 0, totRb = 0, h = '';
+    if (tempRfs.length === 0) { h = `<tr><td colspan="5" class="text-muted py-2">등록된 환불 내역이 없습니다.</td></tr>`; } else {
+        tempRfs.forEach((r, idx) => { totRt += r.rt; totRb += r.rb; h += `<tr><td><span class="badge bg-secondary">${r.tyNm}</span></td><td>${r.ah}H</td><td class="text-danger">${fmt(r.rt)}</td><td class="text-danger">${fmt(r.rb)}</td><td><button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeTempRf(${idx})"><i class="bi bi-x"></i></button></td></tr>`; });
+    }
+    $('rfListBody').innerHTML = h; $('r_rt').textContent = fmt(totRt); $('r_rb').textContent = fmt(totRb);
+}
+
+window.applyRfFinal = function() {
+    const e = E[curEditIdx]; const base = C[e.course]?.[e.q] || {t:0, b:0};
+    e.refunds = tempRfs; e.rT = tempRfs.reduce((sum, r) => sum + r.rt, 0); e.rB = tempRfs.reduce((sum, r) => sum + r.rb, 0);
+    e.cT = base.t - e.rT; e.cB = base.b - e.rB;
+    if (e.refunds.length > 0) { 
+        e.mm = e.refunds.map(r => r.tyNm).join(', '); // 역산된 메모 문자열 적용
+    } else { e.mm = ''; e.cT = null; e.cB = null; }
+    save(); renderE(); mdlR.hide();
+};
+
+// =====================================================
+// STEP 4 : 정산 및 조회 로직
+// =====================================================
+window.autoRunSet = function(silent = false) {
+    if (!E.length) return;
+    Ld = {}; Hs = [];
+    const freeSet = new Set(F.map(f => uid(f.g,f.b,f.n,f.name)));
+    
+    E.forEach(e => {
+        const id  = uid(e.g,e.b,e.n,e.name); const isF = freeSet.has(id); const isC = String(e.g) === '3';
+        if (!Ld[id]) { Ld[id] = { id, dp: dsp(e.g,e.b,e.n), nm: e.name, isF, isC, cB: 0, fB: isF ? 600000 : 0, ty: (isF ? '자유 ' : '') + (isC ? '초3' : '') || '일반', enrolls: [] }; }
+        Ld[id].enrolls.push(e);
+    });
+
+    Object.values(Ld).forEach(L => {
+        if (!L.isC) return;
+        const qs = [...new Set(L.enrolls.map(e=>e.q))].sort();
+        if (qs.some(q => q <= 2)) L.cB += 250000;
+        if (qs.some(q => q >= 3)) L.cB += 250000;
+    });
+
+    Object.values(Ld).forEach(L => {
+        const sortedEnrolls = L.enrolls.sort((a,b) => a.q - b.q || a.course.localeCompare(b.course));
+        const results = sortedEnrolls.map(e => {
+            const bs = C[e.course]?.[e.q] || {t:0, b:0};
+            return { e, origT: (e.cT !== null && e.cT !== undefined) ? e.cT : bs.t, origB: (e.cB !== null && e.cB !== undefined) ? e.cB : bs.b, remT: (e.cT !== null && e.cT !== undefined) ? e.cT : bs.t, remB: (e.cB !== null && e.cB !== undefined) ? e.cB : bs.b, tc: 0, bc: 0, tf: 0, bf: 0 };
+        });
+
+        const deduct = (amount, isCho3) => { const avail = isCho3 ? L.cB : L.fB; const d = Math.min(amount, avail); if (isCho3) L.cB -= d; else L.fB -= d; return d; };
+        
+        if (L.isC) { results.forEach(res => { const d = deduct(res.remT, true); res.tc += d; res.remT -= d; }); results.forEach(res => { const d = deduct(res.remB, true); res.bc += d; res.remB -= d; }); }
+        if (L.isF) { results.forEach(res => { const d = deduct(res.remT, false); res.tf += d; res.remT -= d; }); results.forEach(res => { const d = deduct(res.remB, false); res.bf += d; res.remB -= d; }); }
+
+        results.forEach(res => {
+            Hs.push({
+                q: res.e.q, id: L.id, dp: L.dp, nm: L.nm, c: res.e.course, e: res.e,
+                tO: res.origT, bO: res.origB, tc: res.tc, bc: res.bc, tf: res.tf, bf: res.bf,
+                sT: res.remT, sB: res.remB, sTo: res.remT + res.remB,
+                isF: L.isF, isC: L.isC, g: res.e.g, ban: res.e.b, num: res.e.n
+            });
+        });
+    });
+    
+    if (!silent) setFilt(s4_filt);
+};
+
+window.openStuModalSilent = function(id) { autoRunSet(true); if (!Ld[id]) { alert('수강 신청 내역이 없습니다.'); return; } openStuModal(id); };
+window.sortStu = function(col) { if (stuSortCol === col) stuSortAsc = !stuSortAsc; else { stuSortCol = col; stuSortAsc = false; } renderSetTabs(); };
+window.setFilt = function(f) {
+    s4_filt = f;
+    ['fBtnA','fBtnF','fBtnC'].forEach(id => $(id).className = $(id).className.replace(/btn-dark|btn-success|btn-primary|btn-outline-\w+/g,'').trim());
+    if (f==='A') { $('fBtnA').classList.add('btn-dark'); $('fBtnA').classList.remove('btn-outline-dark'); }
+    if (f==='F') { $('fBtnF').classList.add('btn-success'); $('fBtnF').classList.remove('btn-outline-success'); }
+    if (f==='C') { $('fBtnC').classList.add('btn-primary'); $('fBtnC').classList.remove('btn-outline-primary'); }
+    renderSetTabs();
+};
+
+function safeRenderS4CourseFilter() { if ($('cFilterBtnGroup')) renderS4CourseFilter(); }
+
+function renderS4CourseFilter() {
+    const el = $('cFilterBtnGroup'); if (!el) return;
+    let h = `<button class="btn-cf ${s4_cFilter==='ALL'?'active':''}" onclick="s4_cFilter='ALL';renderSetTabs();">모든 강좌</button>`;
+    Object.keys(C).forEach(c => { h += `<button class="btn-cf ${s4_cFilter===c?'active':''}" onclick="s4_cFilter='${c.replace(/'/g,"\\'")}';renderSetTabs();">${c}</button>`; });
+    el.innerHTML = h;
+}
+
+window.renderSetTabs = function() {
+    const q = val('s4_q'); const hList = Hs.filter(h => (q==='ALL' || String(h.q)===q) && (s4_filt==='A' || (s4_filt==='F'&&h.isF) || (s4_filt==='C'&&h.isC)));
+    
+    const st = {}, g = {cnt:0,tO:0,bO:0,cc:0,tc:0,bc:0,fc:0,tf:0,bf:0,st:0,sb:0};
+    hList.forEach(h => {
+        if (!st[h.c]) st[h.c] = {cnt:0,tO:0,bO:0,cc:0,tc:0,bc:0,fc:0,tf:0,bf:0,st:0,sb:0}; const s = st[h.c];
+        s.cnt++; s.tO+=h.tO; s.bO+=h.bO; s.st+=h.sT; s.sb+=h.sB;
+        if (h.tc>0||h.bc>0) { s.cc++; s.tc+=h.tc; s.bc+=h.bc; } if (h.tf>0||h.bf>0) { s.fc++; s.tf+=h.tf; s.bf+=h.bf; }
+        g.cnt++; g.tO+=h.tO; g.bO+=h.bO; g.st+=h.sT; g.sb+=h.sB;
+        if (h.tc>0||h.bc>0) { g.cc++; g.tc+=h.tc; g.bc+=h.bc; } if (h.tf>0||h.bf>0) { g.fc++; g.tf+=h.tf; g.bf+=h.bf; }
+    });
+    
+    let sH = '';
+    Object.keys(st).sort().forEach(c => {
+        const s = st[c]; const qt = q==='ALL' ? 1 : +q;
+        sH += `<tr><td class="fw-bold">${c}</td><td>${fmt(C[c]?.[qt]?.t||0)}</td><td>${fmt(C[c]?.[qt]?.b||0)}</td><td class="table-warning fw-bold">${s.cnt}</td><td class="table-warning">${fmt(s.tO)}</td><td class="table-warning">${fmt(s.bO)}</td><td class="bg-cho3 text-primary">${s.cc}</td><td class="bg-cho3">${fmt(s.tc)}</td><td class="bg-cho3">${fmt(s.bc)}</td><td class="bg-free text-success">${s.fc}</td><td class="bg-free">${fmt(s.tf)}</td><td class="bg-free">${fmt(s.bf)}</td><td class="table-danger">${fmt(s.st)}</td><td class="table-danger text-danger fw-bold">${fmt(s.sb)}</td></tr>`;
+    });
+    sH += `<tr class="table-dark fw-bold"><td colspan="3">총 합계</td><td class="text-warning">${g.cnt}</td><td>${fmt(g.tO)}</td><td>${fmt(g.bO)}</td><td class="text-primary">${g.cc}</td><td>${fmt(g.tc)}</td><td>${fmt(g.bc)}</td><td class="text-success">${g.fc}</td><td>${fmt(g.tf)}</td><td>${fmt(g.bf)}</td><td>${fmt(g.st)}</td><td class="text-danger">${fmt(g.sb)}</td></tr>`;
+    $('tbStat').innerHTML = sH;
+
+    const lMap = {}; hList.forEach(h => { if (!lMap[h.id]) lMap[h.id] = {L: Ld[h.id], items:[]}; lMap[h.id].items.push(h); });
+    let sortedGrp = Object.values(lMap);
+    sortedGrp.sort((a,b) => {
+        let valA, valB;
+        if (stuSortCol === 'C') { valA = a.L.cB; valB = b.L.cB; } else if (stuSortCol === 'F') { valA = a.L.fB; valB = b.L.fB; } else if (stuSortCol === 'NM') { valA = a.L.nm; valB = b.L.nm; } else { valA = a.L.id; valB = b.L.id; } 
+        if (typeof valA === 'string') return stuSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA); else return stuSortAsc ? valA - valB : valB - valA;
+    });
+    
+    ['DP', 'NM', 'C', 'F'].forEach(k => { if ($('sort_'+k)) $('sort_'+k).innerHTML = stuSortCol === k ? (stuSortAsc ? '▲' : '▼') : ''; });
+    
+    let stuH = '';
+    sortedGrp.forEach(grp => {
+        const L = grp.L;
+        grp.items.sort((a,b) => a.q-b.q).forEach((h, idx) => {
+            stuH += '<tr>';
+            if (idx === 0) { stuH += `<td rowspan="${grp.items.length}">${L.dp}</td><td rowspan="${grp.items.length}" class="fw-bold"><span class="clickable" onclick="openStuModal('${L.id}')"><i class="bi bi-person-lines-fill"></i> ${L.nm}</span></td><td rowspan="${grp.items.length}">${L.ty}</td><td rowspan="${grp.items.length}" class="text-primary fw-bold">${fmt(L.cB)}</td><td rowspan="${grp.items.length}" class="text-success fw-bold">${fmt(L.fB)}</td>`; }
+            stuH += `<td>${h.q}분기</td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`;
+        });
+    });
+    $('tbStuDtl').innerHTML = stuH;
+
+    renderS4CourseFilter(); let cList = hList; if (s4_cFilter !== 'ALL') cList = cList.filter(h => h.c === s4_cFilter);
+    cList.sort((a,b) => a.c.localeCompare(b.c) || a.q-b.q || a.id.localeCompare(b.id));
+    
+    const cSum = {tO:0,bO:0,tc:0,bc:0,tf:0,bf:0,sTo:0}; cList.forEach(h => { cSum.tO+=h.tO; cSum.bO+=h.bO; cSum.tc+=h.tc; cSum.bc+=h.bc; cSum.tf+=h.tf; cSum.bf+=h.bf; cSum.sTo+=h.sTo; });
+    
+    let crsH = `<tr class="table-warning fw-bold sticky-total-row"><td colspan="4" class="text-end pe-3">합계</td><td>${fmt(cSum.tO)}</td><td>${fmt(cSum.bO)}</td><td class="text-primary">${fmt(cSum.tc)}</td><td class="text-primary">${fmt(cSum.bc)}</td><td class="text-success">${fmt(cSum.tf)}</td><td class="text-success">${fmt(cSum.bf)}</td><td class="text-danger fs-6">${fmt(cSum.sTo)}</td></tr>`;
+    
+    cList.forEach(h => { crsH += `<tr><td>${h.q}분기</td><td>${h.dp}</td><td class="fw-bold"><span class="clickable" onclick="openStuModal('${h.id}')">${h.nm}</span></td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`; });
+    $('tbCrseDtl').innerHTML = crsH;
+
+    setTimeout(() => {
+        const thead = $('tbCrseDtl').previousElementSibling; const thHeight = thead ? thead.offsetHeight - 1 : 65; 
+        document.querySelectorAll('#tbCrseDtl .sticky-total-row td').forEach(td => { td.style.position = 'sticky'; td.style.top = thHeight + 'px'; td.style.zIndex = '9'; td.style.backgroundColor = '#fff3cd'; td.style.boxShadow = 'inset 0 -2px 0 #ccc'; });
+    }, 0);
+};
+
+window.openStuModal = function(id) {
+    const L = Ld[id]; if(!L) return;
+    $('stuMdlTit').textContent = `[${L.dp}] ${L.nm} 학생 상세 내역`;
+    const items = Hs.filter(h => h.id === id).sort((a,b) => a.q-b.q); const sum = {tO:0,bO:0,tc:0,bc:0,tf:0,bf:0,sTo:0}; let qSub = {tO:0,bO:0,tc:0,bc:0,tf:0,bf:0,sTo:0}, curQ = -1, rows = '';
+    const makeSubRow = (q, s) => `<tr class="table-warning fw-bold"><td colspan="2" class="text-end pe-3">${q}분기 소계</td><td>${fmt(s.tO)}</td><td>${fmt(s.bO)}</td><td class="text-primary">${fmt(s.tc)}</td><td class="text-primary">${fmt(s.bc)}</td><td class="text-success">${fmt(s.tf)}</td><td class="text-success">${fmt(s.bf)}</td><td class="text-danger">${fmt(s.sTo)}</td></tr>`;
+    
+    items.forEach(h => {
+        if (curQ !== -1 && curQ !== h.q) { rows += makeSubRow(curQ, qSub); qSub = {tO:0,bO:0,tc:0,bc:0,tf:0,bf:0,sTo:0}; }
+        curQ = h.q; qSub.tO+=h.tO; qSub.bO+=h.bO; qSub.tc+=h.tc; qSub.bc+=h.bc; qSub.tf+=h.tf; qSub.bf+=h.bf; qSub.sTo+=h.sTo; sum.tO+=h.tO; sum.bO+=h.bO; sum.tc+=h.tc; sum.bc+=h.bc; sum.tf+=h.tf; sum.bf+=h.bf; sum.sTo+=h.sTo;
+        rows += `<tr><td><span class="badge bg-secondary">${h.q}분기</span></td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`;
+    });
+    if (curQ !== -1) rows += makeSubRow(curQ, qSub);
+    
+    $('stuMdlBody').innerHTML = `<div class="row text-center mb-3"><div class="col"><div class="p-3 border rounded bg-light"><div class="small text-muted">초3 잔여금</div><div class="text-primary fs-4 fw-bold">${fmt(L.cB)}</div>원</div></div><div class="col"><div class="p-3 border rounded bg-light"><div class="small text-muted">자유 잔여금</div><div class="text-success fs-4 fw-bold">${fmt(L.fB)}</div>원</div></div><div class="col"><div class="p-3 border border-danger rounded bg-danger bg-opacity-10"><div class="small text-muted">학부모 총 징수액</div><div class="text-danger fs-4 fw-bold">${fmt(sum.sTo)}</div>원</div></div></div><table class="table table-sm table-bordered text-center align-middle"><thead class="table-light"><tr><th rowspan="2">분기</th><th rowspan="2">강좌명</th><th rowspan="2">수강료</th><th rowspan="2">교재비</th><th colspan="2" class="bg-cho3">초3 공제</th><th colspan="2" class="bg-free">자유 공제</th><th rowspan="2" class="text-danger">징수액</th></tr><tr><th class="bg-cho3">수강료</th><th class="bg-cho3">교재비</th><th class="bg-free">수강료</th><th class="bg-free">교재비</th></tr></thead><tbody>${rows}</tbody><tfoot class="table-dark fw-bold"><tr><td colspan="2">연간 총계</td><td>${fmt(sum.tO)}</td><td>${fmt(sum.bO)}</td><td class="text-primary">${fmt(sum.tc)}</td><td class="text-primary">${fmt(sum.bc)}</td><td class="text-success">${fmt(sum.tf)}</td><td class="text-success">${fmt(sum.bf)}</td><td class="text-danger fs-6">${fmt(sum.sTo)}</td></tr></tfoot></table>`;
+    mdlS.show();
+};
+
+// =====================================================
+// 💡 STEP 5 : 문서 서식 자동생성 (미리보기 및 다운로드 로직)
+// =====================================================
+
+function initStep5() {
+    autoRunSet(true);
+    renderPreviewEdu();
+    renderPreviewInvoice();
+    renderPreviewRef();
+    renderPreviewRoster();
+}
+
+// ① 에듀파인 수납요구서
+function getEduData() {
+    const q = num(val('p_q1'));
+    const ls = Hs.filter(h => h.q === q && h.sTo > 0);
+    const getBaseName = (c) => c.replace(/\s*\([A-Za-z가-힣0-9]+\)$/, '').trim();
+    let result = [];
+
+    const grouped = {};
+    ls.forEach(h => { const baseC = getBaseName(h.c); if (!grouped[baseC]) grouped[baseC] = []; grouped[baseC].push(h); });
+
+    Object.keys(grouped).forEach(baseC => {
+        const sub = grouped[baseC];
+        let maxSessions = 1;
+        sub.forEach(h => {
+            const mhArr = (C[h.c]?.[q]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
+            if(mhArr.length > maxSessions) maxSessions = mhArr.length;
+        });
+
+        for(let i=0; i<maxSessions; i++) {
+            sub.forEach(h => {
+                if(h.sT <= 0) return;
+                const mhArr = (C[h.c]?.[q]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
+                const totalHours = mhArr.reduce((a,b)=>a+b, 0);
+                if(i < mhArr.length) {
+                    let amt = 0;
+                    if(i === mhArr.length - 1) { 
+                        let prevSum = 0; for(let j=0; j<i; j++) prevSum += Math.round(h.sT * (mhArr[j] / totalHours) / 10) * 10;
+                        amt = h.sT - prevSum;
+                    } else {
+                        amt = Math.round(h.sT * (mhArr[i] / totalHours) / 10) * 10;
+                    }
+                    if(amt > 0) result.push({ sheetName: baseC + ` ${i+1}차 수강료`, g: h.g, b: h.ban, n: h.num, nm: h.nm, amt: amt });
+                }
+            });
+        }
+        sub.filter(h => h.sB > 0).forEach(h => {
+            result.push({ sheetName: baseC + ' 재료비', g: h.g, b: h.ban, n: h.num, nm: h.nm, amt: h.sB });
+        });
+    });
+    return result;
+}
+
+window.renderPreviewEdu = function() {
+    const data = getEduData();
+    let h = '';
+    if(!data.length) h = `<tr><td colspan="4" class="text-muted py-3">해당 분기에 수납(자부담) 대상자가 없습니다.</td></tr>`;
+    else {
+        data.forEach(r => {
+            h += `<tr><td class="text-success fw-bold">${r.sheetName}</td><td>${dsp(r.g, r.b, r.n)}</td><td>${r.nm}</td><td>${fmt(r.amt)}</td></tr>`;
+        });
+    }
+    $('prev_edu').innerHTML = h;
+};
+
+window.exEdu = function() {
+    const q = num(val('p_q1'));
+    const data = getEduData();
+    if (!data.length) { alert('해당 분기 자부담 내역이 없습니다.'); return; }
+    
+    const wb = XLSX.utils.book_new();
+    const sheetGroups = {};
+    data.forEach(r => {
+        if(!sheetGroups[r.sheetName]) sheetGroups[r.sheetName] = [];
+        sheetGroups[r.sheetName].push({ '* 학과': r.sheetName.replace(/ (1|2|3|4)차 수강료| 재료비/g, ''), '* 학년': r.g, '* 반': r.b, '* 번호': r.n, '* 성명': r.nm, '* 대상금액': r.amt });
+    });
+    
+    Object.keys(sheetGroups).forEach(sheetName => {
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetGroups[sheetName]), sheetName.substring(0, 31));
+    });
+    XLSX.writeFile(wb, `${q}분기_에듀파인_수납요구서.xlsx`);
+};
+
+// ② 교육비 청구서 데이터 생성 및 렌더링 (3단계 분리 및 강사료 기준 연산 적용)
+function getInvoiceData() {
+    const q = num(val('p_qInvoice'));
+    const targetSess = num(val('p_sInvoice'));
+    const sIdx = targetSess - 1;
+    const ls = Hs.filter(h => h.q === q);
+
+    const grouped = {};
+    ls.forEach(h => {
+        const mhArr = (C[h.c]?.[q]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
+        if (sIdx >= mhArr.length) return; 
+
+        const totalHours = mhArr.reduce((a,b)=>a+b, 0);
+        const getSessAmt = (totalAmt) => {
+            if (totalAmt <= 0) return 0;
+            if (sIdx === mhArr.length - 1) { 
+                let prevSum = 0;
+                for(let j=0; j<sIdx; j++) prevSum += Math.round(totalAmt * (mhArr[j] / totalHours) / 10) * 10;
+                return totalAmt - prevSum;
+            } else {
+                return Math.round(totalAmt * (mhArr[sIdx] / totalHours) / 10) * 10;
+            }
+        };
+
+        const sess_tO = getSessAmt(h.tO);
+        if (sess_tO <= 0) return;
+
+        // 💡 연산 모듈 재활용 (강사료 5% 로직 연동)
+        const calc = (amt) => {
+            if (amt <= 0) return { t:0, i:0, m:0 };
+            const split = getSplitAmts(amt);
+            return { t: amt, i: split.inst, m: split.mgmt };
+        };
+
+        if (!grouped[h.c]) {
+            const baseCalc = calc(sess_tO);
+            grouped[h.c] = {
+                c: h.c, baseT: baseCalc.t, baseInst: baseCalc.i, baseMgmt: baseCalc.m,
+                selfCnt: 0, selfFee: 0, selfInst: 0, selfMgmt: 0,
+                cho3Cnt: 0, cho3Fee: 0, cho3Inst: 0, cho3Mgmt: 0,
+                freeCnt: 0, freeFee: 0, freeInst: 0, freeMgmt: 0,
+                totCnt: 0, totFee: 0, totInst: 0, totMgmt: 0,
+                memos: []
+            };
+        }
+        
+        const g = grouped[h.c];
+        const sSelf = calc(getSessAmt(h.sT));
+        const sCho3 = calc(getSessAmt(h.tc));
+        const sFree = calc(getSessAmt(h.tf));
+
+        if (sSelf.t > 0) { g.selfCnt++; g.selfFee += sSelf.t; g.selfInst += sSelf.i; g.selfMgmt += sSelf.m; }
+        if (sCho3.t > 0) { g.cho3Cnt++; g.cho3Fee += sCho3.t; g.cho3Inst += sCho3.i; g.cho3Mgmt += sCho3.m; }
+        if (sFree.t > 0) { g.freeCnt++; g.freeFee += sFree.t; g.freeInst += sFree.i; g.freeMgmt += sFree.m; }
+
+        if (sSelf.t > 0 || sCho3.t > 0 || sFree.t > 0) {
+            g.totCnt++; 
+            g.totFee += (sSelf.t + sCho3.t + sFree.t); 
+            g.totInst += (sSelf.i + sCho3.i + sFree.i); 
+            g.totMgmt += (sSelf.m + sCho3.m + sFree.m);
+        }
+
+        if (h.e.mm) g.memos.push(`${h.nm}(${h.e.mm})`);
+    });
+
+    return Object.values(grouped).sort((a,b) => a.c.localeCompare(b.c));
+}
+
+window.renderPreviewInvoice = function() {
+    const data = getInvoiceData();
+    let h = '';
+    if(!data.length) h = `<tr><td colspan="22" class="text-muted py-3">해당 분기/차수에 청구할 데이터가 없습니다.</td></tr>`;
+    else {
+        data.forEach((g, idx) => {
+            const uniqueMemos = [...new Set(g.memos)]; 
+            h += `<tr>
+                <td>${idx + 1}</td>
+                <td class="fw-bold">${g.c}</td>
+                <td>${fmt(g.baseT)}</td><td>${fmt(g.baseInst)}</td><td>${fmt(g.baseMgmt)}</td>
+                <td class="table-warning">${g.selfCnt}</td><td class="table-warning">${fmt(g.selfFee)}</td><td class="table-warning">${fmt(g.selfInst)}</td><td class="table-warning">${fmt(g.selfMgmt)}</td>
+                <td class="table-primary">${g.cho3Cnt}</td><td class="table-primary">${fmt(g.cho3Fee)}</td><td class="table-primary">${fmt(g.cho3Inst)}</td><td class="table-primary">${fmt(g.cho3Mgmt)}</td>
+                <td class="table-success">${g.freeCnt}</td><td class="table-success">${fmt(g.freeFee)}</td><td class="table-success">${fmt(g.freeInst)}</td><td class="table-success">${fmt(g.freeMgmt)}</td>
+                <td class="table-danger fw-bold">${g.totCnt}</td><td class="table-danger fw-bold">${fmt(g.totFee)}</td><td class="table-danger fw-bold">${fmt(g.totInst)}</td><td class="table-danger fw-bold">${fmt(g.totMgmt)}</td>
+                <td class="text-start" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${uniqueMemos.join(', ')}">${uniqueMemos.join(', ')}</td>
+            </tr>`;
+        });
+    }
+    $('prev_inv').innerHTML = h;
+};
+
+window.exInvoice = function() {
+    const q = num(val('p_qInvoice'));
+    const targetSess = num(val('p_sInvoice'));
+    const data = getInvoiceData();
+
+    if (!data.length) { alert('해당 분기/차수에 추출할 데이터가 없습니다.'); return; }
+
+    const wb = XLSX.utils.book_new();
+    const aoa = [
+        [`인천갈월초등학교 방과후학교 ${q}분기 ${targetSess}차 교육비 청구서`], [],
+        [`1. 교육기간 : (직접 입력)`], [`2. 입금계좌 : (직접 입력)`],
+        [`3. 청구내용 : 위와 같이 교육을 실시함에 따라 다음과 같이 대금을 청구합니다.`], [],
+        [ '순번', '부서명', '1인당 수강료', '1인당 강사료', '1인당 수용비',
+          '수익자 부담 인원', '수익자 수강료', '수익자 강사료', '수익자 수용비',
+          '초3 지원금 인원', '초3 수강료', '초3 강사료', '초3 수용비',
+          '자유수강 지원 인원', '자유 수강료', '자유 강사료', '자유 수용비',
+          '합계 인원', '합계 수강료', '합계 강사료', '합계 수용비', '비고' ]
+    ];
+
+    let idx = 1;
+    data.forEach(g => {
+        const uniqueMemos = [...new Set(g.memos)]; 
+        aoa.push([
+            idx++, g.c, g.baseT, g.baseInst, g.baseMgmt,
+            g.selfCnt, g.selfFee, g.selfInst, g.selfMgmt,
+            g.cho3Cnt, g.cho3Fee, g.cho3Inst, g.cho3Mgmt,
+            g.freeCnt, g.freeFee, g.freeInst, g.freeMgmt,
+            g.totCnt, g.totFee, g.totInst, g.totMgmt,
+            uniqueMemos.join(', ')
+        ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!merges'] = [
+        { s: {r:0, c:0}, e: {r:0, c:21} },
+        { s: {r:2, c:0}, e: {r:2, c:3} }, { s: {r:2, c:4}, e: {r:2, c:21} },
+        { s: {r:3, c:0}, e: {r:3, c:3} }, { s: {r:3, c:4}, e: {r:3, c:21} },
+        { s: {r:4, c:0}, e: {r:4, c:21} }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, `${targetSess}차 청구서`);
+    XLSX.writeFile(wb, `${q}분기_${targetSess}차_교육비청구서(업체용).xlsx`);
+};
+
+// ③ 환불 결의 내역서
+function getRefData() {
+    return E.filter(e => e.rT>0 || e.rB>0).map(e => {
+        const baseT = C[e.course]?.[e.q]?.t || 0; const baseB = C[e.course]?.[e.q]?.b || 0;
+        return {
+            q: e.q, c: e.course, dp: dsp(e.g,e.b,e.n), nm: e.name, g: e.g, b: e.b, n: e.n,
+            baseT, baseB, rT: e.rT, rB: e.rB,
+            cT: (e.cT != null) ? e.cT : baseT, cB: (e.cB != null) ? e.cB : baseB, mm: e.mm
+        };
+    });
+}
+
+window.renderPreviewRef = function() {
+    const data = getRefData();
+    let h = '';
+    if(!data.length) h = `<tr><td colspan="7" class="text-muted py-3">환불 처리된 내역이 없습니다.</td></tr>`;
+    else {
+        data.forEach(r => {
+            h += `<tr><td>${r.q}분기</td><td class="fw-bold">${r.c}</td><td>${r.dp}</td><td>${r.nm}</td><td class="text-danger">${fmt(r.rT)}</td><td class="text-danger">${fmt(r.rB)}</td><td class="text-start">${r.mm}</td></tr>`;
+        });
+    }
+    $('prev_ref').innerHTML = h;
+};
+
+window.exRef = function() {
+    const data = getRefData();
+    if (!data.length) { alert('환불 내역이 없습니다.'); return; }
+    const wb = XLSX.utils.book_new();
+    const rows = data.map(r => ({
+        '분기': r.q + '분기', '학년': r.g, '반': r.b, '번호': r.n, '이름': r.nm, '강좌명': r.c,
+        '원수강료': r.baseT, '원교재비': r.baseB, '환불_수강료': r.rT, '환불_교재비': r.rB,
+        '최종납부_수강료': r.cT, '최종납부_교재비': r.cB, '환불사유_상세': r.mm
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), '환불정산내역');
+    XLSX.writeFile(wb, `환불정산서_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+// ④ 만능 정산 명단
+function getRosterData() {
+    const q = num(val('p_q2')), tg = val('p_tg'), so = val('p_so');
+    let rows = Hs.filter(h => h.q === q).map(h => {
+        let t = 0, b = 0;
+        if (tg === 'SELF') { t = h.sT; b = h.sB; } else if (tg === 'CHO3') { t = h.tc; b = h.bc; } else if (tg === 'FREE') { t = h.tf; b = h.bf; } else { t = h.tO; b = h.bO; }
+        return { g: h.g, ban: h.ban, n: h.num, nm: h.nm, c: h.c, t, b, tot: t + b };
+    }).filter(x => x.tot > 0);
+    rows.sort((a,b) => so === 'C' ? a.c.localeCompare(b.c) || a.g - b.g || a.ban - b.ban || a.n - b.n : a.g - b.g || a.ban - b.ban || a.n - b.n || a.nm.localeCompare(b.nm));
+    return rows;
+}
+
+window.renderPreviewRoster = function() {
+    const data = getRosterData();
+    let h = '';
+    if(!data.length) h = `<tr><td colspan="7" class="text-muted py-3">해당 조건에 맞는 명단이 없습니다.</td></tr>`;
+    else {
+        data.forEach((r, i) => {
+            h += `<tr><td>${i+1}</td><td>${dsp(r.g, r.ban, r.n)}</td><td>${r.nm}</td><td class="fw-bold">${r.c}</td><td>${fmt(r.t)}</td><td>${fmt(r.b)}</td><td class="fw-bold text-primary">${fmt(r.tot)}</td></tr>`;
+        });
+    }
+    $('prev_ros').innerHTML = h;
+};
+
+window.exRoster = function() {
+    const q = num(val('p_q2')), tg = val('p_tg');
+    const data = getRosterData();
+    if (!data.length) { alert('해당 조건에 맞는 명단이 없습니다.'); return; }
+    const wb = XLSX.utils.book_new();
+    const sheetData = data.map((x, i) => ({ '연번': i + 1, '학년': x.g, '반': x.ban, '번호': x.n, '이름': x.nm, '과목': x.c, '수강료': x.t, '교재비': x.b, '합계': x.tot }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), '정산명단');
+    XLSX.writeFile(wb, `${q}분기_${tg}_정산명단.xlsx`);
+};
+</script>
+</body>
+</html>
