@@ -447,10 +447,15 @@
 
 const APP_NAME = '방과후 스마트 정산 시스템 for bubuk';
 
+const LIMIT_FREE = 600000;
+const LIMIT_CHO3_HALF = 250000;
+
+
 const $  = id => document.getElementById(id);
 const val = id => $(id).value.trim();
 const num = v  => parseInt(String(v).replace(/,/g,'')) || 0;
 const fmt = n  => Number(n||0).toLocaleString();
+const escapeHtml = (str) => String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 const uid = (g,b,n,nm) => `${+g||0}-${+b||0}-${+n||0}-${String(nm||'').trim()}`;
 const dsp = (g,b,n)    => `${+g||0}-${+b||0}-${+n||0}`;
 
@@ -660,7 +665,7 @@ function renderC() {
     safeRenderMatrix(); safeRenderS4CourseFilter(); updateCourseSelect();
 }
 
-function updateCourseSelect() { $('e_c').innerHTML = '<option value="">강좌선택</option>' + Object.keys(C).map(nm => `<option value="${nm}">${nm}</option>`).join(''); }
+function updateCourseSelect() { $('e_c').innerHTML = '<option value="">강좌선택</option>' + Object.keys(C).map(nm => `<option value="${escapeHtml(nm)}">${escapeHtml(nm)}</option>`).join(''); }
 
 // =====================================================
 // STEP 2 : 자유수강권 명단 로직
@@ -689,7 +694,7 @@ window.addFree = function() {
 window.delF = function(i) { F.splice(i,1); save(); renderF(); };
 function renderF() {
     $('cnt_f').textContent = F.length;
-    const tbody = F.map((f,i) => `<tr><td>${dsp(f.g,f.b,f.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(f.g,f.b,f.n,f.name).replace(/'/g,"\\'")}')">${f.name}</span></td><td class="text-success fw-bold">600,000</td><td><button class="btn btn-sm btn-outline-danger py-0" onclick="delF(${i})">삭제</button></td></tr>`).join('');
+    const tbody = F.map((f,i) => `<tr><td>${dsp(f.g,f.b,f.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(f.g,f.b,f.n,f.name).replace(/'/g,"\\'")}')">${escapeHtml(f.name)}</span></td><td class="text-success fw-bold">${fmt(LIMIT_FREE)}</td><td><button class="btn btn-sm btn-outline-danger py-0" onclick="delF(${i})">삭제</button></td></tr>`).join('');
     $('tbFree').innerHTML = `<thead class="table-light"><tr><th>학적</th><th>이름</th><th>지원액</th><th>관리</th></tr></thead><tbody>${tbody}</tbody>`;
 }
 
@@ -733,7 +738,7 @@ function renderEFilters() {
     const stat = {}; cKeys.forEach(c => { stat[c] = {1:0,2:0,3:0,4:0,tot:0}; }); const qTot = {1:0,2:0,3:0,4:0,tot:0};
     E.forEach(e => { if (!stat[e.course]) return; stat[e.course][e.q]++; stat[e.course].tot++; qTot[e.q]++; qTot.tot++; });
     let h = `<thead class="table-light"><tr><th><button class="btn btn-sm btn-dark w-100" onclick="f_eq='ALL';f_ec='ALL';renderE();"><i class="bi bi-arrow-clockwise"></i> 전체</button></th>`;
-    cKeys.forEach(c => { h += `<th style="min-width:90px"><button class="btn btn-sm w-100 ${f_ec === c ? 'btn-primary fw-bold' : 'btn-outline-primary'}" onclick="toggleC('${c.replace(/'/g,"\\'")}')">${c}</button></th>`; });
+    cKeys.forEach(c => { h += `<th style="min-width:90px"><button class="btn btn-sm w-100 ${f_ec === c ? 'btn-primary fw-bold' : 'btn-outline-primary'}" onclick="toggleC('${c.replace(/'/g,"\\'")}')">${escapeHtml(c)}</button></th>`; });
     h += `<th class="bg-secondary text-white align-middle">분기계</th></tr></thead><tbody>`;
     [1,2,3,4].forEach(q => {
         h += `<tr><td><button class="btn btn-sm w-100 ${String(f_eq) === String(q) ? 'btn-primary fw-bold' : 'btn-outline-primary'}" onclick="toggleQ(${q})">${q}분기</button></td>`;
@@ -761,7 +766,7 @@ function renderE() {
         const base = C[e.course]?.[e.q] || {t:0, b:0}; const t = (e.cT !== null && e.cT !== undefined) ? e.cT : base.t; const b = (e.cB !== null && e.cB !== undefined) ? e.cB : base.b;
         const hasR = e.refunds && e.refunds.length > 0;
         const btnR = `<button class="btn btn-sm ${hasR ? 'btn-warning fw-bold text-dark' : 'btn-outline-secondary'} py-1 px-2 me-1" onclick="opR(${e._i})"><i class="bi bi-calculator"></i> 환불/수정</button>`;
-        h += `<tr><td><span class="badge bg-secondary">${e.q}분기</span></td><td>${dsp(e.g,e.b,e.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(e.g,e.b,e.n,e.name).replace(/'/g,"\\'")}')">${e.name}</span></td><td class="text-primary fw-bold">${e.course}</td><td><input class="fmt-num ${e.cT!==null?'text-primary fw-bold':''}" value="${fmt(t)}" onblur="upE(${e._i},'cT',this)"></td><td><input class="fmt-num ${e.cB!==null?'text-primary fw-bold':''}" value="${fmt(b)}" onblur="upE(${e._i},'cB',this)"></td><td><input class="form-control form-control-sm input-fix px-1" value="${e.mm||''}" onblur="upM(${e._i},this)"></td><td>${btnR}<button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="delE(${e._i})"><i class="bi bi-trash"></i></button></td></tr>`;
+        h += `<tr><td><span class="badge bg-secondary">${e.q}분기</span></td><td>${dsp(e.g,e.b,e.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(e.g,e.b,e.n,e.name).replace(/'/g,"\\'")}')">${escapeHtml(e.name)}</span></td><td class="text-primary fw-bold">${escapeHtml(e.course)}</td><td><input class="fmt-num ${e.cT!==null?'text-primary fw-bold':''}" value="${fmt(t)}" onblur="upE(${e._i},'cT',this)"></td><td><input class="fmt-num ${e.cB!==null?'text-primary fw-bold':''}" value="${fmt(b)}" onblur="upE(${e._i},'cB',this)"></td><td><input class="form-control form-control-sm input-fix px-1" value="${escapeHtml(e.mm||'')}" onblur="upM(${e._i},this)"></td><td>${btnR}<button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="delE(${e._i})"><i class="bi bi-trash"></i></button></td></tr>`;
     });
     $('tbEnroll').innerHTML = h + '</tbody>';
 }
@@ -772,7 +777,7 @@ function renderE() {
 window.opR = function(i) {
     const e = E[i]; curEditIdx = i; tempRfs = JSON.parse(JSON.stringify(e.refunds || []));
     const base = C[e.course]?.[e.q] || {t:0, b:0, mh:'8,8,8'};
-    $('r_idx').value = i; $('r_nm').textContent = e.name; $('r_c').textContent = `${e.q}분기 ${e.course}`;
+    $('r_idx').value = i; $('r_nm').textContent = e.name; $('r_c').textContent = `${e.q}분기 ${escapeHtml(e.course)}`;
     $('r_ot').value = fmt(base.t); $('r_ob').value = fmt(base.b); $('r_mh').value = base.mh || '8,8,8'; $('r_ah').value = 0; $('r_type').value = 'DISEASE'; $('r_bk').checked = false;
     updateR_QH(); renderRfList(); updateLivePreview(); mdlR.show();
 };
@@ -869,15 +874,15 @@ window.autoRunSet = function(silent = false) {
     
     E.forEach(e => {
         const id  = uid(e.g,e.b,e.n,e.name); const isF = freeSet.has(id); const isC = String(e.g) === '3';
-        if (!Ld[id]) { Ld[id] = { id, dp: dsp(e.g,e.b,e.n), nm: e.name, isF, isC, cB: 0, fB: isF ? 600000 : 0, ty: (isF ? '자유 ' : '') + (isC ? '초3' : '') || '일반', enrolls: [] }; }
+        if (!Ld[id]) { Ld[id] = { id, dp: dsp(e.g,e.b,e.n), nm: e.name, isF, isC, cB: 0, fB: isF ? LIMIT_FREE : 0, ty: (isF ? '자유 ' : '') + (isC ? '초3' : '') || '일반', enrolls: [] }; }
         Ld[id].enrolls.push(e);
     });
 
     Object.values(Ld).forEach(L => {
         if (!L.isC) return;
         const qs = [...new Set(L.enrolls.map(e=>e.q))].sort();
-        if (qs.some(q => q <= 2)) L.cB += 250000;
-        if (qs.some(q => q >= 3)) L.cB += 250000;
+        if (qs.some(q => q <= 2)) L.cB += LIMIT_CHO3_HALF;
+        if (qs.some(q => q >= 3)) L.cB += LIMIT_CHO3_HALF;
     });
 
     Object.values(Ld).forEach(L => {
@@ -921,7 +926,7 @@ function safeRenderS4CourseFilter() { if ($('cFilterBtnGroup')) renderS4CourseFi
 function renderS4CourseFilter() {
     const el = $('cFilterBtnGroup'); if (!el) return;
     let h = `<button class="btn-cf ${s4_cFilter==='ALL'?'active':''}" onclick="s4_cFilter='ALL';renderSetTabs();">모든 강좌</button>`;
-    Object.keys(C).forEach(c => { h += `<button class="btn-cf ${s4_cFilter===c?'active':''}" onclick="s4_cFilter='${c.replace(/'/g,"\\'")}';renderSetTabs();">${c}</button>`; });
+    Object.keys(C).forEach(c => { h += `<button class="btn-cf ${s4_cFilter===c?'active':''}" onclick="s4_cFilter='${c.replace(/'/g,"\\'")}';renderSetTabs();">${escapeHtml(c)}</button>`; });
     el.innerHTML = h;
 }
 
@@ -940,7 +945,7 @@ window.renderSetTabs = function() {
     let sH = '';
     Object.keys(st).sort().forEach(c => {
         const s = st[c]; const qt = q==='ALL' ? 1 : +q;
-        sH += `<tr><td class="fw-bold">${c}</td><td>${fmt(C[c]?.[qt]?.t||0)}</td><td>${fmt(C[c]?.[qt]?.b||0)}</td><td class="table-warning fw-bold">${s.cnt}</td><td class="table-warning">${fmt(s.tO)}</td><td class="table-warning">${fmt(s.bO)}</td><td class="bg-cho3 text-primary">${s.cc}</td><td class="bg-cho3">${fmt(s.tc)}</td><td class="bg-cho3">${fmt(s.bc)}</td><td class="bg-free text-success">${s.fc}</td><td class="bg-free">${fmt(s.tf)}</td><td class="bg-free">${fmt(s.bf)}</td><td class="table-danger">${fmt(s.st)}</td><td class="table-danger text-danger fw-bold">${fmt(s.sb)}</td></tr>`;
+        sH += `<tr><td class="fw-bold">${escapeHtml(c)}</td><td>${fmt(C[c]?.[qt]?.t||0)}</td><td>${fmt(C[c]?.[qt]?.b||0)}</td><td class="table-warning fw-bold">${s.cnt}</td><td class="table-warning">${fmt(s.tO)}</td><td class="table-warning">${fmt(s.bO)}</td><td class="bg-cho3 text-primary">${s.cc}</td><td class="bg-cho3">${fmt(s.tc)}</td><td class="bg-cho3">${fmt(s.bc)}</td><td class="bg-free text-success">${s.fc}</td><td class="bg-free">${fmt(s.tf)}</td><td class="bg-free">${fmt(s.bf)}</td><td class="table-danger">${fmt(s.st)}</td><td class="table-danger text-danger fw-bold">${fmt(s.sb)}</td></tr>`;
     });
     sH += `<tr class="table-dark fw-bold"><td colspan="3">총 합계</td><td class="text-warning">${g.cnt}</td><td>${fmt(g.tO)}</td><td>${fmt(g.bO)}</td><td class="text-primary">${g.cc}</td><td>${fmt(g.tc)}</td><td>${fmt(g.bc)}</td><td class="text-success">${g.fc}</td><td>${fmt(g.tf)}</td><td>${fmt(g.bf)}</td><td>${fmt(g.st)}</td><td class="text-danger">${fmt(g.sb)}</td></tr>`;
     $('tbStat').innerHTML = sH;
@@ -960,8 +965,8 @@ window.renderSetTabs = function() {
         const L = grp.L;
         grp.items.sort((a,b) => a.q-b.q).forEach((h, idx) => {
             stuH += '<tr>';
-            if (idx === 0) { stuH += `<td rowspan="${grp.items.length}">${L.dp}</td><td rowspan="${grp.items.length}" class="fw-bold"><span class="clickable" onclick="openStuModal('${L.id}')"><i class="bi bi-person-lines-fill"></i> ${L.nm}</span></td><td rowspan="${grp.items.length}">${L.ty}</td><td rowspan="${grp.items.length}" class="text-primary fw-bold">${fmt(L.cB)}</td><td rowspan="${grp.items.length}" class="text-success fw-bold">${fmt(L.fB)}</td>`; }
-            stuH += `<td>${h.q}분기</td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`;
+            if (idx === 0) { stuH += `<td rowspan="${grp.items.length}">${escapeHtml(L.dp)}</td><td rowspan="${grp.items.length}" class="fw-bold"><span class="clickable" onclick="openStuModal('${L.id}')"><i class="bi bi-person-lines-fill"></i> ${escapeHtml(L.nm)}</span></td><td rowspan="${grp.items.length}">${L.ty}</td><td rowspan="${grp.items.length}" class="text-primary fw-bold">${fmt(L.cB)}</td><td rowspan="${grp.items.length}" class="text-success fw-bold">${fmt(L.fB)}</td>`; }
+            stuH += `<td>${h.q}분기</td><td class="text-primary fw-bold">${escapeHtml(h.c)}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`;
         });
     });
     $('tbStuDtl').innerHTML = stuH;
@@ -973,7 +978,7 @@ window.renderSetTabs = function() {
     
     let crsH = `<tr class="table-warning fw-bold sticky-total-row"><td colspan="4" class="text-end pe-3">합계</td><td>${fmt(cSum.tO)}</td><td>${fmt(cSum.bO)}</td><td class="text-primary">${fmt(cSum.tc)}</td><td class="text-primary">${fmt(cSum.bc)}</td><td class="text-success">${fmt(cSum.tf)}</td><td class="text-success">${fmt(cSum.bf)}</td><td class="text-danger fs-6">${fmt(cSum.sTo)}</td></tr>`;
     
-    cList.forEach(h => { crsH += `<tr><td>${h.q}분기</td><td>${h.dp}</td><td class="fw-bold"><span class="clickable" onclick="openStuModal('${h.id}')">${h.nm}</span></td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`; });
+    cList.forEach(h => { crsH += `<tr><td>${h.q}분기</td><td>${escapeHtml(h.dp)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModal('${h.id}')">${escapeHtml(h.nm)}</span></td><td class="text-primary fw-bold">${escapeHtml(h.c)}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`; });
     $('tbCrseDtl').innerHTML = crsH;
 
     setTimeout(() => {
@@ -984,14 +989,14 @@ window.renderSetTabs = function() {
 
 window.openStuModal = function(id) {
     const L = Ld[id]; if(!L) return;
-    $('stuMdlTit').textContent = `[${L.dp}] ${L.nm} 학생 상세 내역`;
+    $('stuMdlTit').textContent = `[${escapeHtml(L.dp)}] ${escapeHtml(L.nm)} 학생 상세 내역`;
     const items = Hs.filter(h => h.id === id).sort((a,b) => a.q-b.q); const sum = {tO:0,bO:0,tc:0,bc:0,tf:0,bf:0,sTo:0}; let qSub = {tO:0,bO:0,tc:0,bc:0,tf:0,bf:0,sTo:0}, curQ = -1, rows = '';
     const makeSubRow = (q, s) => `<tr class="table-warning fw-bold"><td colspan="2" class="text-end pe-3">${q}분기 소계</td><td>${fmt(s.tO)}</td><td>${fmt(s.bO)}</td><td class="text-primary">${fmt(s.tc)}</td><td class="text-primary">${fmt(s.bc)}</td><td class="text-success">${fmt(s.tf)}</td><td class="text-success">${fmt(s.bf)}</td><td class="text-danger">${fmt(s.sTo)}</td></tr>`;
     
     items.forEach(h => {
         if (curQ !== -1 && curQ !== h.q) { rows += makeSubRow(curQ, qSub); qSub = {tO:0,bO:0,tc:0,bc:0,tf:0,bf:0,sTo:0}; }
         curQ = h.q; qSub.tO+=h.tO; qSub.bO+=h.bO; qSub.tc+=h.tc; qSub.bc+=h.bc; qSub.tf+=h.tf; qSub.bf+=h.bf; qSub.sTo+=h.sTo; sum.tO+=h.tO; sum.bO+=h.bO; sum.tc+=h.tc; sum.bc+=h.bc; sum.tf+=h.tf; sum.bf+=h.bf; sum.sTo+=h.sTo;
-        rows += `<tr><td><span class="badge bg-secondary">${h.q}분기</span></td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`;
+        rows += `<tr><td><span class="badge bg-secondary">${h.q}분기</span></td><td class="text-primary fw-bold">${escapeHtml(h.c)}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`;
     });
     if (curQ !== -1) rows += makeSubRow(curQ, qSub);
     
@@ -1059,7 +1064,7 @@ window.renderPreviewEdu = function() {
     if(!data.length) h = `<tr><td colspan="4" class="text-muted py-3">해당 분기에 수납(자부담) 대상자가 없습니다.</td></tr>`;
     else {
         data.forEach(r => {
-            h += `<tr><td class="text-success fw-bold">${r.sheetName}</td><td>${dsp(r.g, r.b, r.n)}</td><td>${r.nm}</td><td>${fmt(r.amt)}</td></tr>`;
+            h += `<tr><td class="text-success fw-bold">${escapeHtml(r.sheetName)}</td><td>${dsp(r.g, r.b, r.n)}</td><td>${escapeHtml(r.nm)}</td><td>${fmt(r.amt)}</td></tr>`;
         });
     }
     $('prev_edu').innerHTML = h;
@@ -1166,7 +1171,7 @@ window.renderPreviewInvoice = function() {
                 <td class="table-primary">${g.cho3Cnt}</td><td class="table-primary">${fmt(g.cho3Fee)}</td><td class="table-primary">${fmt(g.cho3Inst)}</td><td class="table-primary">${fmt(g.cho3Mgmt)}</td>
                 <td class="table-success">${g.freeCnt}</td><td class="table-success">${fmt(g.freeFee)}</td><td class="table-success">${fmt(g.freeInst)}</td><td class="table-success">${fmt(g.freeMgmt)}</td>
                 <td class="table-danger fw-bold">${g.totCnt}</td><td class="table-danger fw-bold">${fmt(g.totFee)}</td><td class="table-danger fw-bold">${fmt(g.totInst)}</td><td class="table-danger fw-bold">${fmt(g.totMgmt)}</td>
-                <td class="text-start" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${uniqueMemos.join(', ')}">${uniqueMemos.join(', ')}</td>
+                <td class="text-start" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(uniqueMemos.join(', '))}">${escapeHtml(uniqueMemos.join(', '))}</td>
             </tr>`;
         });
     }
@@ -1234,7 +1239,7 @@ window.renderPreviewRef = function() {
     if(!data.length) h = `<tr><td colspan="7" class="text-muted py-3">환불 처리된 내역이 없습니다.</td></tr>`;
     else {
         data.forEach(r => {
-            h += `<tr><td>${r.q}분기</td><td class="fw-bold">${r.c}</td><td>${r.dp}</td><td>${r.nm}</td><td class="text-danger">${fmt(r.rT)}</td><td class="text-danger">${fmt(r.rB)}</td><td class="text-start">${r.mm}</td></tr>`;
+            h += `<tr><td>${r.q}분기</td><td class="fw-bold">${escapeHtml(r.c)}</td><td>${r.dp}</td><td>${escapeHtml(r.nm)}</td><td class="text-danger">${fmt(r.rT)}</td><td class="text-danger">${fmt(r.rB)}</td><td class="text-start">${escapeHtml(r.mm)}</td></tr>`;
         });
     }
     $('prev_ref').innerHTML = h;
@@ -1271,7 +1276,7 @@ window.renderPreviewRoster = function() {
     if(!data.length) h = `<tr><td colspan="7" class="text-muted py-3">해당 조건에 맞는 명단이 없습니다.</td></tr>`;
     else {
         data.forEach((r, i) => {
-            h += `<tr><td>${i+1}</td><td>${dsp(r.g, r.ban, r.n)}</td><td>${r.nm}</td><td class="fw-bold">${r.c}</td><td>${fmt(r.t)}</td><td>${fmt(r.b)}</td><td class="fw-bold text-primary">${fmt(r.tot)}</td></tr>`;
+            h += `<tr><td>${i+1}</td><td>${dsp(r.g, r.ban, r.n)}</td><td>${escapeHtml(r.nm)}</td><td class="fw-bold">${escapeHtml(r.c)}</td><td>${fmt(r.t)}</td><td>${fmt(r.b)}</td><td class="fw-bold text-primary">${fmt(r.tot)}</td></tr>`;
         });
     }
     $('prev_ros').innerHTML = h;
