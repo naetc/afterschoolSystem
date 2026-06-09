@@ -27,6 +27,7 @@
         .sub-nav .nav-link.active { background:#fff; color:#212529; font-weight:bold; border-top:3px solid #dc3545; }
         .input-fix { width: 100%; min-width: 150px; }
         .step5-preview-table th, .step5-preview-table td { font-size: 0.8rem; white-space: nowrap; }
+        .sticky-total-row th, .sticky-total-row td { position: sticky; top: 28px; z-index: 9; background: #fff3cd !important; box-shadow: inset 0 -2px 0 #ccc; }
     </style>
 </head>
 <body>
@@ -199,6 +200,7 @@
                         </div>
                     </div>
                     <div>
+                        <button class="btn btn-sm btn-outline-warning fw-bold me-2" onclick="toggleCloseSess()"><i class="bi bi-lock-fill"></i> 현재 차수 마감</button>
                         <span class="fw-bold small text-muted me-2">분기:</span>
                         <select id="s4_q" class="form-select form-select-sm d-inline-block w-auto fw-bold text-danger border-danger" onchange="renderSetTabs()">
                             <option value="ALL">전체</option><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option>
@@ -384,7 +386,8 @@
                         </div>
                     </div>
                     <div class="mb-2">
-                        <select id="r_type" class="form-select form-select-sm border-danger">
+                        <select id="r_sess_idx" class="form-select form-select-sm border-primary mb-2"></select>
+                            <select id="r_type" class="form-select form-select-sm border-danger">
                             <option value="BEFORE">수강 개시 전 (전액 반환)</option>
                             <option value="DISEASE">결석/감염병 등 (입력한 시수만큼 일할 반환)</option>
                             <option value="STUDENT">학습자 포기 (진행 시수 기준 구간 반환)</option>
@@ -447,15 +450,10 @@
 
 const APP_NAME = '방과후 스마트 정산 시스템 for bubuk';
 
-const LIMIT_FREE = 600000;
-const LIMIT_CHO3_HALF = 250000;
-
-
 const $  = id => document.getElementById(id);
 const val = id => $(id).value.trim();
 const num = v  => parseInt(String(v).replace(/,/g,'')) || 0;
 const fmt = n  => Number(n||0).toLocaleString();
-const escapeHtml = (str) => String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 const uid = (g,b,n,nm) => `${+g||0}-${+b||0}-${+n||0}-${String(nm||'').trim()}`;
 const dsp = (g,b,n)    => `${+g||0}-${+b||0}-${+n||0}`;
 
@@ -486,7 +484,7 @@ let f_eq='ALL', f_ec='ALL';
 let s4_filt='A', curS4Tab='STAT', s4_cFilter='ALL';
 let stuSortCol = '', stuSortAsc = false; 
 let mdlR, mdlS, curEditIdx = -1, tempRfs = [];
-let SysSet = { fTy: 'R', fVal: 5 }; 
+let SysSet = { fTy: 'R', fVal: 5, closedSess: {} };
 const KEY = 'bgh_v36';
 
 function loadData() {
@@ -496,6 +494,7 @@ function loadData() {
         const d = JSON.parse(raw);
         C = d.C || {};
         SysSet = d.SysSet || { fTy: 'R', fVal: 5 };
+        SysSet.closedSess = SysSet.closedSess || {};
         F = (d.F || []).map(x => ({ g: +(x.g||0), b: +(x.b||0), n: +(x.n||0), name: String(x.name||'') }));
         E = (d.E || []).map(x => {
             let refs = x.refunds || [];
@@ -665,7 +664,7 @@ function renderC() {
     safeRenderMatrix(); safeRenderS4CourseFilter(); updateCourseSelect();
 }
 
-function updateCourseSelect() { $('e_c').innerHTML = '<option value="">강좌선택</option>' + Object.keys(C).map(nm => `<option value="${escapeHtml(nm)}">${escapeHtml(nm)}</option>`).join(''); }
+function updateCourseSelect() { $('e_c').innerHTML = '<option value="">강좌선택</option>' + Object.keys(C).map(nm => `<option value="${nm}">${nm}</option>`).join(''); }
 
 // =====================================================
 // STEP 2 : 자유수강권 명단 로직
@@ -694,7 +693,7 @@ window.addFree = function() {
 window.delF = function(i) { F.splice(i,1); save(); renderF(); };
 function renderF() {
     $('cnt_f').textContent = F.length;
-    const tbody = F.map((f,i) => `<tr><td>${dsp(f.g,f.b,f.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(f.g,f.b,f.n,f.name).replace(/'/g,"\\'")}')">${escapeHtml(f.name)}</span></td><td class="text-success fw-bold">${fmt(LIMIT_FREE)}</td><td><button class="btn btn-sm btn-outline-danger py-0" onclick="delF(${i})">삭제</button></td></tr>`).join('');
+    const tbody = F.map((f,i) => `<tr><td>${dsp(f.g,f.b,f.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(f.g,f.b,f.n,f.name).replace(/'/g,"\\'")}')">${f.name}</span></td><td class="text-success fw-bold">600,000</td><td><button class="btn btn-sm btn-outline-danger py-0" onclick="delF(${i})">삭제</button></td></tr>`).join('');
     $('tbFree').innerHTML = `<thead class="table-light"><tr><th>학적</th><th>이름</th><th>지원액</th><th>관리</th></tr></thead><tbody>${tbody}</tbody>`;
 }
 
@@ -738,7 +737,7 @@ function renderEFilters() {
     const stat = {}; cKeys.forEach(c => { stat[c] = {1:0,2:0,3:0,4:0,tot:0}; }); const qTot = {1:0,2:0,3:0,4:0,tot:0};
     E.forEach(e => { if (!stat[e.course]) return; stat[e.course][e.q]++; stat[e.course].tot++; qTot[e.q]++; qTot.tot++; });
     let h = `<thead class="table-light"><tr><th><button class="btn btn-sm btn-dark w-100" onclick="f_eq='ALL';f_ec='ALL';renderE();"><i class="bi bi-arrow-clockwise"></i> 전체</button></th>`;
-    cKeys.forEach(c => { h += `<th style="min-width:90px"><button class="btn btn-sm w-100 ${f_ec === c ? 'btn-primary fw-bold' : 'btn-outline-primary'}" onclick="toggleC('${c.replace(/'/g,"\\'")}')">${escapeHtml(c)}</button></th>`; });
+    cKeys.forEach(c => { h += `<th style="min-width:90px"><button class="btn btn-sm w-100 ${f_ec === c ? 'btn-primary fw-bold' : 'btn-outline-primary'}" onclick="toggleC('${c.replace(/'/g,"\\'")}')">${c}</button></th>`; });
     h += `<th class="bg-secondary text-white align-middle">분기계</th></tr></thead><tbody>`;
     [1,2,3,4].forEach(q => {
         h += `<tr><td><button class="btn btn-sm w-100 ${String(f_eq) === String(q) ? 'btn-primary fw-bold' : 'btn-outline-primary'}" onclick="toggleQ(${q})">${q}분기</button></td>`;
@@ -766,7 +765,7 @@ function renderE() {
         const base = C[e.course]?.[e.q] || {t:0, b:0}; const t = (e.cT !== null && e.cT !== undefined) ? e.cT : base.t; const b = (e.cB !== null && e.cB !== undefined) ? e.cB : base.b;
         const hasR = e.refunds && e.refunds.length > 0;
         const btnR = `<button class="btn btn-sm ${hasR ? 'btn-warning fw-bold text-dark' : 'btn-outline-secondary'} py-1 px-2 me-1" onclick="opR(${e._i})"><i class="bi bi-calculator"></i> 환불/수정</button>`;
-        h += `<tr><td><span class="badge bg-secondary">${e.q}분기</span></td><td>${dsp(e.g,e.b,e.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(e.g,e.b,e.n,e.name).replace(/'/g,"\\'")}')">${escapeHtml(e.name)}</span></td><td class="text-primary fw-bold">${escapeHtml(e.course)}</td><td><input class="fmt-num ${e.cT!==null?'text-primary fw-bold':''}" value="${fmt(t)}" onblur="upE(${e._i},'cT',this)"></td><td><input class="fmt-num ${e.cB!==null?'text-primary fw-bold':''}" value="${fmt(b)}" onblur="upE(${e._i},'cB',this)"></td><td><input class="form-control form-control-sm input-fix px-1" value="${escapeHtml(e.mm||'')}" onblur="upM(${e._i},this)"></td><td>${btnR}<button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="delE(${e._i})"><i class="bi bi-trash"></i></button></td></tr>`;
+        h += `<tr><td><span class="badge bg-secondary">${e.q}분기</span></td><td>${dsp(e.g,e.b,e.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(e.g,e.b,e.n,e.name).replace(/'/g,"\\'")}')">${e.name}</span></td><td class="text-primary fw-bold">${e.course}</td><td><input class="fmt-num ${e.cT!==null?'text-primary fw-bold':''}" value="${fmt(t)}" onblur="upE(${e._i},'cT',this)"></td><td><input class="fmt-num ${e.cB!==null?'text-primary fw-bold':''}" value="${fmt(b)}" onblur="upE(${e._i},'cB',this)"></td><td><input class="form-control form-control-sm input-fix px-1" value="${e.mm||''}" onblur="upM(${e._i},this)"></td><td>${btnR}<button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="delE(${e._i})"><i class="bi bi-trash"></i></button></td></tr>`;
     });
     $('tbEnroll').innerHTML = h + '</tbody>';
 }
@@ -777,8 +776,10 @@ function renderE() {
 window.opR = function(i) {
     const e = E[i]; curEditIdx = i; tempRfs = JSON.parse(JSON.stringify(e.refunds || []));
     const base = C[e.course]?.[e.q] || {t:0, b:0, mh:'8,8,8'};
-    $('r_idx').value = i; $('r_nm').textContent = e.name; $('r_c').textContent = `${e.q}분기 ${escapeHtml(e.course)}`;
+    $('r_idx').value = i; $('r_nm').textContent = e.name; $('r_c').textContent = `${e.q}분기 ${e.course}`;
     $('r_ot').value = fmt(base.t); $('r_ob').value = fmt(base.b); $('r_mh').value = base.mh || '8,8,8'; $('r_ah').value = 0; $('r_type').value = 'DISEASE'; $('r_bk').checked = false;
+    const sessCount = (base.mh || '8,8,8').split(',').length;
+    $('r_sess_idx').innerHTML = Array.from({length: sessCount}, (_, i) => `<option value="${i}">${i+1}차수 환불적용</option>`).join('');
     updateR_QH(); renderRfList(); updateLivePreview(); mdlR.show();
 };
 
@@ -838,7 +839,8 @@ window.addRfToTemp = function() {
     const tyNmBase = {'BEFORE':'개시전', 'DISEASE':'결석', 'STUDENT':'포기'}[ty] || '';
     const memoStr = ty === 'BEFORE' ? `[${tyNmBase}]` : `[${tyNmBase}] ${progStr}`;
     
-    tempRfs.push({ ty, tyNm: memoStr, ah, rt, rb }); 
+    const sessIdx = num(val('r_sess_idx'));
+    tempRfs.push({ ty, tyNm: memoStr, ah, rt, rb, sessIdx });
     $('r_ah').value = 0; $('r_bk').checked = false; 
     renderRfList(); updateLivePreview();
 };
@@ -867,6 +869,81 @@ window.applyRfFinal = function() {
 // =====================================================
 // STEP 4 : 정산 및 조회 로직
 // =====================================================
+
+window.toggleCloseSess = function() {
+    const q = val('s4_q');
+    if (q === 'ALL') { alert('특정 분기를 선택한 상태에서만 마감이 가능합니다.'); return; }
+    const sessStr = prompt('마감할 차수를 입력하세요 (예: 1, 2, 3)');
+    if (!sessStr) return;
+    const sessIdx = parseInt(sessStr) - 1;
+    if (isNaN(sessIdx) || sessIdx < 0) { alert('올바른 차수 숫자를 입력하세요.'); return; }
+
+    const targetQ = num(q);
+    const key = `${targetQ}_${sessIdx}`;
+
+    if (SysSet.closedSess[key]) {
+        if (confirm(`해당 분기 ${sessIdx+1}차수는 이미 마감되어 있습니다. 마감을 해제하시겠습니까?`)) {
+            delete SysSet.closedSess[key];
+            save(); alert('마감이 해제되었습니다.'); renderSetTabs();
+        }
+    } else {
+        if (confirm(`해당 분기 ${sessIdx+1}차수를 마감하시겠습니까? 현재까지의 지원금 차감 내역이 영구 고정됩니다.`)) {
+            // 현재 화면의 스냅샷을 저장 (간단히 하기 위해 Hs의 현재 상태를 복사하여 묶음)
+            const snapshot = {};
+            // 현재 차수(sessIdx)의 청구 데이터만 미리 추출하여 저장
+            const targetSess = sessIdx + 1;
+            const ls = Hs.filter(h => h.q === targetQ);
+            ls.forEach(h => {
+                const mhArr = (C[h.c]?.[targetQ]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
+                if (sessIdx >= mhArr.length) return;
+
+                const totalHours = mhArr.reduce((a,b)=>a+b, 0);
+                const getSAmt = (tAmt) => {
+                    if (tAmt <= 0) return 0;
+                    if (sessIdx === mhArr.length - 1) {
+                        let pSum = 0;
+                        for(let j=0; j<sessIdx; j++) pSum += Math.round(tAmt * (mhArr[j] / totalHours) / 10) * 10;
+                        return tAmt - pSum;
+                    } else {
+                        return Math.round(tAmt * (mhArr[sessIdx] / totalHours) / 10) * 10;
+                    }
+                };
+
+                let grossSessAmt = getSAmt(h.tO);
+                if (grossSessAmt <= 0) return;
+
+                let sRef = 0;
+                if (h.e.refunds && h.e.refunds.length > 0) {
+                    sRef = h.e.refunds.filter(r => r.sessIdx === sessIdx).reduce((sum, r) => sum + r.rt, 0);
+                }
+
+                let actualSessAmt = Math.max(0, grossSessAmt - sRef);
+
+                let selfA = getSAmt(h.sT);
+                let cho3A = getSAmt(h.tc);
+                let freeA = getSAmt(h.tf);
+
+                let cTot = selfA + cho3A + freeA;
+                if (cTot > actualSessAmt) {
+                    let toDed = cTot - actualSessAmt;
+                    if (toDed > 0 && selfA > 0) { const d = Math.min(toDed, selfA); selfA -= d; toDed -= d; }
+                    if (toDed > 0 && cho3A > 0) { const d = Math.min(toDed, cho3A); cho3A -= d; toDed -= d; }
+                    if (toDed > 0 && freeA > 0) { const d = Math.min(toDed, freeA); freeA -= d; toDed -= d; }
+                } else if (cTot < actualSessAmt) {
+                    let toAdd = actualSessAmt - cTot;
+                    if (h.tf > 0) freeA += toAdd; // 기본적으로 지원금이 모자라면 자부담으로 넘어가야 하지만, 간단하게 free/cho3/self 중 하나에 추가
+                    else if (h.tc > 0) cho3A += toAdd;
+                    else selfA += toAdd;
+                }
+
+                snapshot[h.id] = { selfAmt: selfA, cho3Amt: cho3A, freeAmt: freeA };
+            });
+            SysSet.closedSess[key] = snapshot;
+            save(); alert('성공적으로 마감되었습니다.'); renderSetTabs();
+        }
+    }
+};
+
 window.autoRunSet = function(silent = false) {
     if (!E.length) return;
     Ld = {}; Hs = [];
@@ -874,15 +951,15 @@ window.autoRunSet = function(silent = false) {
     
     E.forEach(e => {
         const id  = uid(e.g,e.b,e.n,e.name); const isF = freeSet.has(id); const isC = String(e.g) === '3';
-        if (!Ld[id]) { Ld[id] = { id, dp: dsp(e.g,e.b,e.n), nm: e.name, isF, isC, cB: 0, fB: isF ? LIMIT_FREE : 0, ty: (isF ? '자유 ' : '') + (isC ? '초3' : '') || '일반', enrolls: [] }; }
+        if (!Ld[id]) { Ld[id] = { id, dp: dsp(e.g,e.b,e.n), nm: e.name, isF, isC, cB: 0, fB: isF ? 600000 : 0, ty: (isF ? '자유 ' : '') + (isC ? '초3' : '') || '일반', enrolls: [] }; }
         Ld[id].enrolls.push(e);
     });
 
     Object.values(Ld).forEach(L => {
         if (!L.isC) return;
         const qs = [...new Set(L.enrolls.map(e=>e.q))].sort();
-        if (qs.some(q => q <= 2)) L.cB += LIMIT_CHO3_HALF;
-        if (qs.some(q => q >= 3)) L.cB += LIMIT_CHO3_HALF;
+        if (qs.some(q => q <= 2)) L.cB += 250000;
+        if (qs.some(q => q >= 3)) L.cB += 250000;
     });
 
     Object.values(Ld).forEach(L => {
@@ -926,7 +1003,7 @@ function safeRenderS4CourseFilter() { if ($('cFilterBtnGroup')) renderS4CourseFi
 function renderS4CourseFilter() {
     const el = $('cFilterBtnGroup'); if (!el) return;
     let h = `<button class="btn-cf ${s4_cFilter==='ALL'?'active':''}" onclick="s4_cFilter='ALL';renderSetTabs();">모든 강좌</button>`;
-    Object.keys(C).forEach(c => { h += `<button class="btn-cf ${s4_cFilter===c?'active':''}" onclick="s4_cFilter='${c.replace(/'/g,"\\'")}';renderSetTabs();">${escapeHtml(c)}</button>`; });
+    Object.keys(C).forEach(c => { h += `<button class="btn-cf ${s4_cFilter===c?'active':''}" onclick="s4_cFilter='${c.replace(/'/g,"\\'")}';renderSetTabs();">${c}</button>`; });
     el.innerHTML = h;
 }
 
@@ -945,7 +1022,7 @@ window.renderSetTabs = function() {
     let sH = '';
     Object.keys(st).sort().forEach(c => {
         const s = st[c]; const qt = q==='ALL' ? 1 : +q;
-        sH += `<tr><td class="fw-bold">${escapeHtml(c)}</td><td>${fmt(C[c]?.[qt]?.t||0)}</td><td>${fmt(C[c]?.[qt]?.b||0)}</td><td class="table-warning fw-bold">${s.cnt}</td><td class="table-warning">${fmt(s.tO)}</td><td class="table-warning">${fmt(s.bO)}</td><td class="bg-cho3 text-primary">${s.cc}</td><td class="bg-cho3">${fmt(s.tc)}</td><td class="bg-cho3">${fmt(s.bc)}</td><td class="bg-free text-success">${s.fc}</td><td class="bg-free">${fmt(s.tf)}</td><td class="bg-free">${fmt(s.bf)}</td><td class="table-danger">${fmt(s.st)}</td><td class="table-danger text-danger fw-bold">${fmt(s.sb)}</td></tr>`;
+        sH += `<tr><td class="fw-bold">${c}</td><td>${fmt(C[c]?.[qt]?.t||0)}</td><td>${fmt(C[c]?.[qt]?.b||0)}</td><td class="table-warning fw-bold">${s.cnt}</td><td class="table-warning">${fmt(s.tO)}</td><td class="table-warning">${fmt(s.bO)}</td><td class="bg-cho3 text-primary">${s.cc}</td><td class="bg-cho3">${fmt(s.tc)}</td><td class="bg-cho3">${fmt(s.bc)}</td><td class="bg-free text-success">${s.fc}</td><td class="bg-free">${fmt(s.tf)}</td><td class="bg-free">${fmt(s.bf)}</td><td class="table-danger">${fmt(s.st)}</td><td class="table-danger text-danger fw-bold">${fmt(s.sb)}</td></tr>`;
     });
     sH += `<tr class="table-dark fw-bold"><td colspan="3">총 합계</td><td class="text-warning">${g.cnt}</td><td>${fmt(g.tO)}</td><td>${fmt(g.bO)}</td><td class="text-primary">${g.cc}</td><td>${fmt(g.tc)}</td><td>${fmt(g.bc)}</td><td class="text-success">${g.fc}</td><td>${fmt(g.tf)}</td><td>${fmt(g.bf)}</td><td>${fmt(g.st)}</td><td class="text-danger">${fmt(g.sb)}</td></tr>`;
     $('tbStat').innerHTML = sH;
@@ -965,8 +1042,8 @@ window.renderSetTabs = function() {
         const L = grp.L;
         grp.items.sort((a,b) => a.q-b.q).forEach((h, idx) => {
             stuH += '<tr>';
-            if (idx === 0) { stuH += `<td rowspan="${grp.items.length}">${escapeHtml(L.dp)}</td><td rowspan="${grp.items.length}" class="fw-bold"><span class="clickable" onclick="openStuModal('${L.id}')"><i class="bi bi-person-lines-fill"></i> ${escapeHtml(L.nm)}</span></td><td rowspan="${grp.items.length}">${L.ty}</td><td rowspan="${grp.items.length}" class="text-primary fw-bold">${fmt(L.cB)}</td><td rowspan="${grp.items.length}" class="text-success fw-bold">${fmt(L.fB)}</td>`; }
-            stuH += `<td>${h.q}분기</td><td class="text-primary fw-bold">${escapeHtml(h.c)}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`;
+            if (idx === 0) { stuH += `<td rowspan="${grp.items.length}">${L.dp}</td><td rowspan="${grp.items.length}" class="fw-bold"><span class="clickable" onclick="openStuModal('${L.id}')"><i class="bi bi-person-lines-fill"></i> ${L.nm}</span></td><td rowspan="${grp.items.length}">${L.ty}</td><td rowspan="${grp.items.length}" class="text-primary fw-bold">${fmt(L.cB)}</td><td rowspan="${grp.items.length}" class="text-success fw-bold">${fmt(L.fB)}</td>`; }
+            stuH += `<td>${h.q}분기</td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`;
         });
     });
     $('tbStuDtl').innerHTML = stuH;
@@ -978,7 +1055,7 @@ window.renderSetTabs = function() {
     
     let crsH = `<tr class="table-warning fw-bold sticky-total-row"><td colspan="4" class="text-end pe-3">합계</td><td>${fmt(cSum.tO)}</td><td>${fmt(cSum.bO)}</td><td class="text-primary">${fmt(cSum.tc)}</td><td class="text-primary">${fmt(cSum.bc)}</td><td class="text-success">${fmt(cSum.tf)}</td><td class="text-success">${fmt(cSum.bf)}</td><td class="text-danger fs-6">${fmt(cSum.sTo)}</td></tr>`;
     
-    cList.forEach(h => { crsH += `<tr><td>${h.q}분기</td><td>${escapeHtml(h.dp)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModal('${h.id}')">${escapeHtml(h.nm)}</span></td><td class="text-primary fw-bold">${escapeHtml(h.c)}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`; });
+    cList.forEach(h => { crsH += `<tr><td>${h.q}분기</td><td>${h.dp}</td><td class="fw-bold"><span class="clickable" onclick="openStuModal('${h.id}')">${h.nm}</span></td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`; });
     $('tbCrseDtl').innerHTML = crsH;
 
     setTimeout(() => {
@@ -989,14 +1066,14 @@ window.renderSetTabs = function() {
 
 window.openStuModal = function(id) {
     const L = Ld[id]; if(!L) return;
-    $('stuMdlTit').textContent = `[${escapeHtml(L.dp)}] ${escapeHtml(L.nm)} 학생 상세 내역`;
+    $('stuMdlTit').textContent = `[${L.dp}] ${L.nm} 학생 상세 내역`;
     const items = Hs.filter(h => h.id === id).sort((a,b) => a.q-b.q); const sum = {tO:0,bO:0,tc:0,bc:0,tf:0,bf:0,sTo:0}; let qSub = {tO:0,bO:0,tc:0,bc:0,tf:0,bf:0,sTo:0}, curQ = -1, rows = '';
     const makeSubRow = (q, s) => `<tr class="table-warning fw-bold"><td colspan="2" class="text-end pe-3">${q}분기 소계</td><td>${fmt(s.tO)}</td><td>${fmt(s.bO)}</td><td class="text-primary">${fmt(s.tc)}</td><td class="text-primary">${fmt(s.bc)}</td><td class="text-success">${fmt(s.tf)}</td><td class="text-success">${fmt(s.bf)}</td><td class="text-danger">${fmt(s.sTo)}</td></tr>`;
     
     items.forEach(h => {
         if (curQ !== -1 && curQ !== h.q) { rows += makeSubRow(curQ, qSub); qSub = {tO:0,bO:0,tc:0,bc:0,tf:0,bf:0,sTo:0}; }
         curQ = h.q; qSub.tO+=h.tO; qSub.bO+=h.bO; qSub.tc+=h.tc; qSub.bc+=h.bc; qSub.tf+=h.tf; qSub.bf+=h.bf; qSub.sTo+=h.sTo; sum.tO+=h.tO; sum.bO+=h.bO; sum.tc+=h.tc; sum.bc+=h.bc; sum.tf+=h.tf; sum.bf+=h.bf; sum.sTo+=h.sTo;
-        rows += `<tr><td><span class="badge bg-secondary">${h.q}분기</span></td><td class="text-primary fw-bold">${escapeHtml(h.c)}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`;
+        rows += `<tr><td><span class="badge bg-secondary">${h.q}분기</span></td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`;
     });
     if (curQ !== -1) rows += makeSubRow(curQ, qSub);
     
@@ -1028,29 +1105,9 @@ function getEduData() {
 
     Object.keys(grouped).forEach(baseC => {
         const sub = grouped[baseC];
-        let maxSessions = 1;
         sub.forEach(h => {
-            const mhArr = (C[h.c]?.[q]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
-            if(mhArr.length > maxSessions) maxSessions = mhArr.length;
+            if(h.sT > 0) result.push({ sheetName: baseC + ' 수강료', g: h.g, b: h.ban, n: h.num, nm: h.nm, amt: h.sT });
         });
-
-        for(let i=0; i<maxSessions; i++) {
-            sub.forEach(h => {
-                if(h.sT <= 0) return;
-                const mhArr = (C[h.c]?.[q]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
-                const totalHours = mhArr.reduce((a,b)=>a+b, 0);
-                if(i < mhArr.length) {
-                    let amt = 0;
-                    if(i === mhArr.length - 1) { 
-                        let prevSum = 0; for(let j=0; j<i; j++) prevSum += Math.round(h.sT * (mhArr[j] / totalHours) / 10) * 10;
-                        amt = h.sT - prevSum;
-                    } else {
-                        amt = Math.round(h.sT * (mhArr[i] / totalHours) / 10) * 10;
-                    }
-                    if(amt > 0) result.push({ sheetName: baseC + ` ${i+1}차 수강료`, g: h.g, b: h.ban, n: h.num, nm: h.nm, amt: amt });
-                }
-            });
-        }
         sub.filter(h => h.sB > 0).forEach(h => {
             result.push({ sheetName: baseC + ' 재료비', g: h.g, b: h.ban, n: h.num, nm: h.nm, amt: h.sB });
         });
@@ -1063,8 +1120,10 @@ window.renderPreviewEdu = function() {
     let h = '';
     if(!data.length) h = `<tr><td colspan="4" class="text-muted py-3">해당 분기에 수납(자부담) 대상자가 없습니다.</td></tr>`;
     else {
+        const totalAmt = data.reduce((sum, r) => sum + r.amt, 0);
+        h += `<tr class="sticky-total-row fw-bold"><td colspan="3" class="text-end pe-3">총 합계</td><td class="text-danger">${fmt(totalAmt)}</td></tr>`;
         data.forEach(r => {
-            h += `<tr><td class="text-success fw-bold">${escapeHtml(r.sheetName)}</td><td>${dsp(r.g, r.b, r.n)}</td><td>${escapeHtml(r.nm)}</td><td>${fmt(r.amt)}</td></tr>`;
+            h += `<tr><td class="text-success fw-bold">${r.sheetName}</td><td>${dsp(r.g, r.b, r.n)}</td><td>${r.nm}</td><td>${fmt(r.amt)}</td></tr>`;
         });
     }
     $('prev_edu').innerHTML = h;
@@ -1083,6 +1142,8 @@ window.exEdu = function() {
     });
     
     Object.keys(sheetGroups).forEach(sheetName => {
+        const total = sheetGroups[sheetName].reduce((sum, r) => sum + r['* 대상금액'], 0);
+        sheetGroups[sheetName].push({ '* 학과': '총계', '* 학년': '', '* 반': '', '* 번호': '', '* 성명': '', '* 대상금액': total });
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetGroups[sheetName]), sheetName.substring(0, 31));
     });
     XLSX.writeFile(wb, `${q}분기_에듀파인_수납요구서.xlsx`);
@@ -1095,10 +1156,12 @@ function getInvoiceData() {
     const sIdx = targetSess - 1;
     const ls = Hs.filter(h => h.q === q);
 
+    const getBaseName = (c) => c.replace(/\s*\([A-Za-z가-힣0-9]+\)$/, '').trim();
     const grouped = {};
     ls.forEach(h => {
         const mhArr = (C[h.c]?.[q]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
         if (sIdx >= mhArr.length) return; 
+        const baseC = getBaseName(h.c);
 
         const totalHours = mhArr.reduce((a,b)=>a+b, 0);
         const getSessAmt = (totalAmt) => {
@@ -1112,20 +1175,36 @@ function getInvoiceData() {
             }
         };
 
-        const sess_tO = getSessAmt(h.tO);
+        let sess_tO = getSessAmt(h.tO);
         if (sess_tO <= 0) return;
 
-        // 💡 연산 모듈 재활용 (강사료 5% 로직 연동)
+        // 💡 연산 모듈 재활용 및 정액 수용비 차수 비율 적용
+        // 💡 마감된 차수의 스냅샷 데이터 조회
+        let closedSnapshot = null;
+        if (SysSet.closedSess && SysSet.closedSess[`${q}_${sIdx}`]) {
+            closedSnapshot = SysSet.closedSess[`${q}_${sIdx}`][h.id];
+        }
+
+        // 환불 로직: 해당 차수에 지정된 환불 금액 조회
+        let sessRefund = 0;
+        if (h.e.refunds && h.e.refunds.length > 0) {
+            sessRefund = h.e.refunds.filter(r => r.sessIdx === sIdx).reduce((sum, r) => sum + r.rt, 0);
+        }
+
         const calc = (amt) => {
             if (amt <= 0) return { t:0, i:0, m:0 };
+            if (SysSet.fTy === 'F') {
+                const proportionedMgmt = Math.round((SysSet.fVal * (mhArr[sIdx] / totalHours)) / 10) * 10;
+                return { t: amt, i: amt - proportionedMgmt, m: proportionedMgmt };
+            }
             const split = getSplitAmts(amt);
             return { t: amt, i: split.inst, m: split.mgmt };
         };
 
-        if (!grouped[h.c]) {
-            const baseCalc = calc(sess_tO);
-            grouped[h.c] = {
-                c: h.c, baseT: baseCalc.t, baseInst: baseCalc.i, baseMgmt: baseCalc.m,
+        if (!grouped[baseC]) {
+            const baseCalc = calc(sess_tO, true);
+            grouped[baseC] = {
+                c: baseC, baseT: baseCalc.t, baseInst: baseCalc.i, baseMgmt: baseCalc.m,
                 selfCnt: 0, selfFee: 0, selfInst: 0, selfMgmt: 0,
                 cho3Cnt: 0, cho3Fee: 0, cho3Inst: 0, cho3Mgmt: 0,
                 freeCnt: 0, freeFee: 0, freeInst: 0, freeMgmt: 0,
@@ -1134,10 +1213,42 @@ function getInvoiceData() {
             };
         }
         
-        const g = grouped[h.c];
-        const sSelf = calc(getSessAmt(h.sT));
-        const sCho3 = calc(getSessAmt(h.tc));
-        const sFree = calc(getSessAmt(h.tf));
+        const g = grouped[baseC];
+        let selfAmt = 0, cho3Amt = 0, freeAmt = 0;
+
+        if (closedSnapshot) {
+            // 마감된 스냅샷이 존재하면, 이미 계산된 차수별 금액을 그대로 사용
+            selfAmt = closedSnapshot.selfAmt || 0;
+            cho3Amt = closedSnapshot.cho3Amt || 0;
+            freeAmt = closedSnapshot.freeAmt || 0;
+        } else {
+            let grossSessAmt = sess_tO;
+            let actualSessAmt = Math.max(0, grossSessAmt - sessRefund);
+
+            selfAmt = getSessAmt(h.sT);
+            cho3Amt = getSessAmt(h.tc);
+            freeAmt = getSessAmt(h.tf);
+
+            let currentTot = selfAmt + cho3Amt + freeAmt;
+
+            if (currentTot > actualSessAmt) {
+                let toDeduct = currentTot - actualSessAmt;
+                if (toDeduct > 0 && selfAmt > 0) { const d = Math.min(toDeduct, selfAmt); selfAmt -= d; toDeduct -= d; }
+                if (toDeduct > 0 && cho3Amt > 0) { const d = Math.min(toDeduct, cho3Amt); cho3Amt -= d; toDeduct -= d; }
+                if (toDeduct > 0 && freeAmt > 0) { const d = Math.min(toDeduct, freeAmt); freeAmt -= d; toDeduct -= d; }
+            } else if (currentTot < actualSessAmt) {
+                // 특정 차수 환불이 다른 차수에 적용되어 이 차수에는 배분액이 모자란 경우
+                let toAdd = actualSessAmt - currentTot;
+                // 기존 결제 비율이나, 단순화를 위해 자부담에 우선 부과
+                if (h.sT > 0 || (h.tc === 0 && h.tf === 0)) { selfAmt += toAdd; }
+                else if (h.tc > 0) { cho3Amt += toAdd; }
+                else { freeAmt += toAdd; }
+            }
+        }
+
+        const sSelf = calc(selfAmt);
+        const sCho3 = calc(cho3Amt);
+        const sFree = calc(freeAmt);
 
         if (sSelf.t > 0) { g.selfCnt++; g.selfFee += sSelf.t; g.selfInst += sSelf.i; g.selfMgmt += sSelf.m; }
         if (sCho3.t > 0) { g.cho3Cnt++; g.cho3Fee += sCho3.t; g.cho3Inst += sCho3.i; g.cho3Mgmt += sCho3.m; }
@@ -1161,6 +1272,15 @@ window.renderPreviewInvoice = function() {
     let h = '';
     if(!data.length) h = `<tr><td colspan="22" class="text-muted py-3">해당 분기/차수에 청구할 데이터가 없습니다.</td></tr>`;
     else {
+        let totSelf=0, totCho3=0, totFree=0, totAll=0;
+        data.forEach(g => { totSelf+=g.selfFee; totCho3+=g.cho3Fee; totFree+=g.freeFee; totAll+=g.totFee; });
+        h += `<tr class="sticky-total-row fw-bold text-center">
+            <td colspan="6" class="text-end pe-3">총 합계</td>
+            <td class="text-warning">${fmt(totSelf)}</td><td colspan="3"></td>
+            <td class="text-primary">${fmt(totCho3)}</td><td colspan="3"></td>
+            <td class="text-success">${fmt(totFree)}</td><td colspan="3"></td>
+            <td class="text-danger fs-6">${fmt(totAll)}</td><td colspan="3"></td>
+        </tr>`;
         data.forEach((g, idx) => {
             const uniqueMemos = [...new Set(g.memos)]; 
             h += `<tr>
@@ -1171,7 +1291,7 @@ window.renderPreviewInvoice = function() {
                 <td class="table-primary">${g.cho3Cnt}</td><td class="table-primary">${fmt(g.cho3Fee)}</td><td class="table-primary">${fmt(g.cho3Inst)}</td><td class="table-primary">${fmt(g.cho3Mgmt)}</td>
                 <td class="table-success">${g.freeCnt}</td><td class="table-success">${fmt(g.freeFee)}</td><td class="table-success">${fmt(g.freeInst)}</td><td class="table-success">${fmt(g.freeMgmt)}</td>
                 <td class="table-danger fw-bold">${g.totCnt}</td><td class="table-danger fw-bold">${fmt(g.totFee)}</td><td class="table-danger fw-bold">${fmt(g.totInst)}</td><td class="table-danger fw-bold">${fmt(g.totMgmt)}</td>
-                <td class="text-start" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(uniqueMemos.join(', '))}">${escapeHtml(uniqueMemos.join(', '))}</td>
+                <td class="text-start" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${uniqueMemos.join(', ')}">${uniqueMemos.join(', ')}</td>
             </tr>`;
         });
     }
@@ -1210,6 +1330,9 @@ window.exInvoice = function() {
         ]);
     });
 
+    let exTotSelf=0, exTotCho3=0, exTotFree=0, exTotAll=0;
+    data.forEach(g => { exTotSelf+=g.selfFee; exTotCho3+=g.cho3Fee; exTotFree+=g.freeFee; exTotAll+=g.totFee; });
+    aoa.push(['총계', '', '', '', '', '', exTotSelf, '', '', '', exTotCho3, '', '', '', exTotFree, '', '', '', exTotAll, '', '', '']);
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!merges'] = [
         { s: {r:0, c:0}, e: {r:0, c:21} },
@@ -1239,7 +1362,7 @@ window.renderPreviewRef = function() {
     if(!data.length) h = `<tr><td colspan="7" class="text-muted py-3">환불 처리된 내역이 없습니다.</td></tr>`;
     else {
         data.forEach(r => {
-            h += `<tr><td>${r.q}분기</td><td class="fw-bold">${escapeHtml(r.c)}</td><td>${r.dp}</td><td>${escapeHtml(r.nm)}</td><td class="text-danger">${fmt(r.rT)}</td><td class="text-danger">${fmt(r.rB)}</td><td class="text-start">${escapeHtml(r.mm)}</td></tr>`;
+            h += `<tr><td>${r.q}분기</td><td class="fw-bold">${r.c}</td><td>${r.dp}</td><td>${r.nm}</td><td class="text-danger">${fmt(r.rT)}</td><td class="text-danger">${fmt(r.rB)}</td><td class="text-start">${r.mm}</td></tr>`;
         });
     }
     $('prev_ref').innerHTML = h;
@@ -1275,8 +1398,11 @@ window.renderPreviewRoster = function() {
     let h = '';
     if(!data.length) h = `<tr><td colspan="7" class="text-muted py-3">해당 조건에 맞는 명단이 없습니다.</td></tr>`;
     else {
+        let totT=0, totB=0, totAll=0;
+        data.forEach(r => { totT+=r.t; totB+=r.b; totAll+=r.tot; });
+        h += `<tr class="sticky-total-row fw-bold text-center"><td colspan="4" class="text-end pe-3">총 합계</td><td>${fmt(totT)}</td><td>${fmt(totB)}</td><td class="text-danger fs-6">${fmt(totAll)}</td></tr>`;
         data.forEach((r, i) => {
-            h += `<tr><td>${i+1}</td><td>${dsp(r.g, r.ban, r.n)}</td><td>${escapeHtml(r.nm)}</td><td class="fw-bold">${escapeHtml(r.c)}</td><td>${fmt(r.t)}</td><td>${fmt(r.b)}</td><td class="fw-bold text-primary">${fmt(r.tot)}</td></tr>`;
+            h += `<tr><td>${i+1}</td><td>${dsp(r.g, r.ban, r.n)}</td><td>${r.nm}</td><td class="fw-bold">${r.c}</td><td>${fmt(r.t)}</td><td>${fmt(r.b)}</td><td class="fw-bold text-primary">${fmt(r.tot)}</td></tr>`;
         });
     }
     $('prev_ros').innerHTML = h;
@@ -1288,6 +1414,10 @@ window.exRoster = function() {
     if (!data.length) { alert('해당 조건에 맞는 명단이 없습니다.'); return; }
     const wb = XLSX.utils.book_new();
     const sheetData = data.map((x, i) => ({ '연번': i + 1, '학년': x.g, '반': x.ban, '번호': x.n, '이름': x.nm, '과목': x.c, '수강료': x.t, '교재비': x.b, '합계': x.tot }));
+    const sumT = sheetData.reduce((sum, x) => sum + x['수강료'], 0);
+    const sumB = sheetData.reduce((sum, x) => sum + x['교재비'], 0);
+    const sumTot = sheetData.reduce((sum, x) => sum + x['합계'], 0);
+    sheetData.push({ '연번': '총계', '학년': '', '반': '', '번호': '', '이름': '', '과목': '', '수강료': sumT, '교재비': sumB, '합계': sumTot });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), '정산명단');
     XLSX.writeFile(wb, `${q}분기_${tg}_정산명단.xlsx`);
 };
