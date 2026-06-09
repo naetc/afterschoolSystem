@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>방과후 스마트 정산 시스템</title>
+    <title>방과후 스마트 정산 시스템 v2.6</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -27,7 +27,12 @@
         .sub-nav .nav-link.active { background:#fff; color:#212529; font-weight:bold; border-top:3px solid #dc3545; }
         .input-fix { width: 100%; min-width: 150px; }
         .step5-preview-table th, .step5-preview-table td { font-size: 0.8rem; white-space: nowrap; }
-        .sticky-total-row th, .sticky-total-row td { position: sticky; top: 28px; z-index: 9; background: #fff3cd !important; box-shadow: inset 0 -2px 0 #ccc; }
+        .sticky-total-row th, .sticky-total-row td { position: sticky; top: var(--sticky-top, 40px); z-index: 9; background: #fff3cd !important; box-shadow: inset 0 -2px 0 #ccc; }
+        #s4t3 table th { position: sticky; top: 0; z-index: 10; background: #e9ecef !important; }
+        #s4t3 table .sticky-total-row td { --sticky-top: 55px; }
+        #s5t_edu table .sticky-total-row td { --sticky-top: 31px; }
+        #s5t_inv table .sticky-total-row td { --sticky-top: 55px; }
+        #s5t_ros table .sticky-total-row td { --sticky-top: 31px; }
     </style>
 </head>
 <body>
@@ -35,7 +40,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
     <h4 id="sysTitle" class="fw-bold text-primary mb-0 d-flex align-items-center gap-3">
         <span>방과후 스마트 정산 시스템 for bubuk</span>
-        <span class="badge bg-danger fs-6" id="verBadge">v2.5</span>
+        <span class="badge bg-danger fs-6" id="verBadge">v2.6</span>
     </h4>
     <div class="d-flex align-items-center gap-3">
         <div id="storageUsage" class="small fw-bold text-muted mb-0 bg-light px-2 py-1 rounded border">💾 용량 확인 중...</div>
@@ -199,12 +204,12 @@
                             <button class="btn btn-sm btn-outline-primary" id="fBtnC" onclick="setFilt('C')">초3지원만</button>
                         </div>
                     </div>
-                    <div>
-                        <button class="btn btn-sm btn-outline-warning fw-bold me-2" onclick="toggleCloseSess()"><i class="bi bi-lock-fill"></i> 현재 차수 마감</button>
-                        <span class="fw-bold small text-muted me-2">분기:</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fw-bold small text-muted">분기:</span>
                         <select id="s4_q" class="form-select form-select-sm d-inline-block w-auto fw-bold text-danger border-danger" onchange="renderSetTabs()">
                             <option value="ALL">전체</option><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option>
                         </select>
+                        <div id="closeSessChecks" class="d-flex gap-2 ms-2 bg-warning bg-opacity-10 p-1 px-2 rounded border border-warning" style="display:none !important;"></div>
                     </div>
                 </div>
                 <button class="btn btn-success btn-sm fw-bold" onclick="exportStep4Excel()"><i class="bi bi-download"></i> 엑셀 다운로드</button>
@@ -249,7 +254,7 @@
                         <div class="d-flex gap-2 align-items-center">
                             <span class="fw-bold small">분기/차수:</span>
                             <select id="p_qInvoice" class="form-select form-select-sm w-auto border-info" onchange="renderPreviewInvoice()"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select>
-                            <select id="p_sInvoice" class="form-select form-select-sm w-auto border-info" onchange="renderPreviewInvoice()"><option value="1">1차</option><option value="2">2차</option><option value="3">3차</option></select>
+                            <select id="p_sInvoice" class="form-select form-select-sm w-auto border-info" onchange="renderPreviewInvoice()"><option value="ALL">전체 차수 합산</option><option value="1">1차</option><option value="2">2차</option><option value="3">3차</option></select>
                         </div>
                         <button class="btn btn-info btn-sm fw-bold text-white px-4" onclick="exInvoice()">엑셀 다운로드</button>
                     </div>
@@ -258,7 +263,7 @@
                             <thead class="table-info">
                                 <tr>
                                     <th rowspan="2">순번</th><th rowspan="2">강좌명</th>
-                                    <th colspan="3">1인당 기준액</th><th colspan="4">수익자 부담</th><th colspan="4">초3 지원</th><th colspan="4">자유수강 지원</th><th colspan="4">합계</th><th rowspan="2">비고</th>
+                                    <th colspan="3">1인당 기준액</th><th colspan="4">수익자 부담</th><th colspan="4">초3 지원</th><th colspan="4">자유수강 지원</th><th colspan="4">합계</th><th rowspan="2" class="table-warning">차액<br>(환불등)</th><th rowspan="2">비고</th>
                                 </tr>
                                 <tr>
                                     <th>수강료</th><th>강사료</th><th>수용비</th>
@@ -299,7 +304,7 @@
         <div class="card p-4 border-info bg-light" style="max-height: 750px; overflow-y: auto;">
             <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom border-info">
                 <h5 class="fw-bold text-info mb-0"><i class="bi bi-book-half"></i> 방과후 스마트 정산 시스템 상세 매뉴얼</h5>
-                <span class="badge bg-secondary fs-6" id="manualVersion">v2.5</span>
+                <span class="badge bg-secondary fs-6" id="manualVersion">v2.6</span>
             </div>
             
             <div class="mb-4">
@@ -331,13 +336,14 @@
                     <div class="col-md-12">
                         <div class="p-3 bg-white border rounded shadow-sm">
                             <strong class="text-primary">STEP 3. 수강생 및 환불 (실무 입력)</strong>
-                            <p class="small text-muted mt-2 mb-0">수강생을 등록하고 결석/포기가 발생하면 <strong>[환불/수정]</strong> 버튼을 누릅니다. 환불을 처리하면 <strong>시스템이 남은 시수를 자동으로 역산하여 `[포기] 2차 0H` 형태로 비고란에 기록</strong>합니다. 또한 <strong>[☑️ 환불/결석 학생만 보기]</strong> 스위치를 통해 환불자만 빠르게 조회할 수 있습니다.</p>
+                            <p class="small text-muted mt-2 mb-0">수강생을 등록하고 환불이 발생하면 <strong>[환불/수정]</strong> 버튼을 누릅니다. 환불이 발생한 '차수'를 지정하고 진행/결석 시수를 입력하면, 시스템이 해당 차수의 원수강료를 기준으로 환불액을 정확히 산출합니다. 환불을 처리하면 <strong>`[포기(1차)] 13,500` 형태로 비고란에 환불 내역이 자동 기록</strong>됩니다.</p>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="p-3 bg-white border rounded shadow-sm h-100">
                             <strong class="text-danger">STEP 4. 정산 및 조회</strong>
-                            <p class="small text-muted mt-2 mb-0">최종 징수액과 지원금 차감 내역을 확인합니다. 표 제목을 클릭해 원하는 조건으로 정렬하세요.</p>
+                            <p class="small text-muted mt-2 mb-0">최종 징수액과 지원금 차감 내역을 확인합니다. 표 제목을 클릭해 원하는 조건으로 정렬하세요.<br>
+                            * <strong>차수 마감 기능:</strong> 분기 선택 드롭다운 옆의 'n차 마감' 체크박스를 클릭하면, 해당 시점의 지원금/자부담 차감 내역이 영구적으로 고정(스냅샷)됩니다. 마감 이후에 대상자가 추가/변경되더라도 기존 청구 금액은 변하지 않습니다.</p>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -760,12 +766,23 @@ function renderE() {
         return true;
     }).sort((a,b) => a.q - b.q);
 
-    let h = `<thead class="table-light"><tr><th>분기</th><th>학적</th><th>이름</th><th>강좌명</th><th>수강료</th><th>교재비</th><th>환불/비고</th><th>관리</th></tr></thead><tbody>`;
+    let h = `<thead class="table-light"><tr><th>분기</th><th>학적</th><th>이름</th><th>강좌명</th><th>수강료(원금)</th><th>교재비(원금)</th><th class="text-danger">환불(수)</th><th class="text-danger">환불(교)</th><th>비고</th><th>관리</th></tr></thead><tbody>`;
     ls.forEach(e => {
         const base = C[e.course]?.[e.q] || {t:0, b:0}; const t = (e.cT !== null && e.cT !== undefined) ? e.cT : base.t; const b = (e.cB !== null && e.cB !== undefined) ? e.cB : base.b;
         const hasR = e.refunds && e.refunds.length > 0;
         const btnR = `<button class="btn btn-sm ${hasR ? 'btn-warning fw-bold text-dark' : 'btn-outline-secondary'} py-1 px-2 me-1" onclick="opR(${e._i})"><i class="bi bi-calculator"></i> 환불/수정</button>`;
-        h += `<tr><td><span class="badge bg-secondary">${e.q}분기</span></td><td>${dsp(e.g,e.b,e.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(e.g,e.b,e.n,e.name).replace(/'/g,"\\'")}')">${e.name}</span></td><td class="text-primary fw-bold">${e.course}</td><td><input class="fmt-num ${e.cT!==null?'text-primary fw-bold':''}" value="${fmt(t)}" onblur="upE(${e._i},'cT',this)"></td><td><input class="fmt-num ${e.cB!==null?'text-primary fw-bold':''}" value="${fmt(b)}" onblur="upE(${e._i},'cB',this)"></td><td><input class="form-control form-control-sm input-fix px-1" value="${e.mm||''}" onblur="upM(${e._i},this)"></td><td>${btnR}<button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="delE(${e._i})"><i class="bi bi-trash"></i></button></td></tr>`;
+        h += `<tr>
+            <td><span class="badge bg-secondary">${e.q}분기</span></td>
+            <td>${dsp(e.g,e.b,e.n)}</td>
+            <td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(e.g,e.b,e.n,e.name).replace(/'/g,"\\'")}')">${e.name}</span></td>
+            <td class="text-primary fw-bold">${e.course}</td>
+            <td><input class="fmt-num ${e.cT!==null?'text-primary fw-bold':''}" style="width:75px" value="${fmt(t)}" onblur="upE(${e._i},'cT',this)"></td>
+            <td><input class="fmt-num ${e.cB!==null?'text-primary fw-bold':''}" style="width:75px" value="${fmt(b)}" onblur="upE(${e._i},'cB',this)"></td>
+            <td class="text-danger fw-bold">${fmt(e.rT||0)}</td>
+            <td class="text-danger fw-bold">${fmt(e.rB||0)}</td>
+            <td><input class="form-control form-control-sm input-fix px-1" style="min-width:120px" value="${e.mm||''}" onblur="upM(${e._i},this)"></td>
+            <td>${btnR}<button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="delE(${e._i})"><i class="bi bi-trash"></i></button></td>
+        </tr>`;
     });
     $('tbEnroll').innerHTML = h + '</tbody>';
 }
@@ -777,7 +794,12 @@ window.opR = function(i) {
     const e = E[i]; curEditIdx = i; tempRfs = JSON.parse(JSON.stringify(e.refunds || []));
     const base = C[e.course]?.[e.q] || {t:0, b:0, mh:'8,8,8'};
     $('r_idx').value = i; $('r_nm').textContent = e.name; $('r_c').textContent = `${e.q}분기 ${e.course}`;
-    $('r_ot').value = fmt(base.t); $('r_ob').value = fmt(base.b); $('r_mh').value = base.mh || '8,8,8'; $('r_ah').value = 0; $('r_type').value = 'DISEASE'; $('r_bk').checked = false;
+    // ❗ 요청 반영: 3스텝에서 확정된(수정된) 학생의 원금 기준. 만약 아직 수정되지 않았으면 요금표 base 금액.
+    // (단, e.cT, e.cB는 기존 코드에서 "환불 후 금액"으로 쓰이고 있었으나, 이번 개편(applyRfFinal)에서 "원수강료"를 보존하는 용도로 분리됨)
+    // 따라서 e.cT를 바로 가져오면 됨
+    const initT = (e.cT !== null && e.cT !== undefined) ? e.cT : base.t;
+    const initB = (e.cB !== null && e.cB !== undefined) ? e.cB : base.b;
+    $('r_ot').value = fmt(initT); $('r_ob').value = fmt(initB); $('r_mh').value = base.mh || '8,8,8'; $('r_ah').value = 0; $('r_type').value = 'DISEASE'; $('r_bk').checked = false;
     const sessCount = (base.mh || '8,8,8').split(',').length;
     $('r_sess_idx').innerHTML = Array.from({length: sessCount}, (_, i) => `<option value="${i}">${i+1}차수 환불적용</option>`).join('');
     updateR_QH(); renderRfList(); updateLivePreview(); mdlR.show();
@@ -835,6 +857,7 @@ function calculateCurrentRf() {
     } else if (ty === 'DISEASE') {
         rt = (sessBaseAmt / sessHours) * ah; // 해당 차수 내 결석 시수만큼 일할 반환
     } else if (ty === 'STUDENT') {
+        // 학습자 포기 시: 현재 진행 차수(sessIdx)의 비율에 따른 환불액
         const ratio = ah / sessHours;
         if (ratio <= 1/3) {
             rt = sessBaseAmt * (2/3);
@@ -842,6 +865,20 @@ function calculateCurrentRf() {
             rt = sessBaseAmt * (1/2);
         } else {
             rt = 0; // 1/2 경과 시 반환하지 않음
+        }
+
+        // ❗ 요청1 반영: 현재 차수 이후에 남은 모든 차수(sessIdx + 1 부터 끝까지)의 원금 전액을 더해서 1차에 함께 환불
+        for (let j = sessIdx + 1; j < mhArr.length; j++) {
+            // getSAmt는 j번째 차수 원금을 구하는 함수 (내부 변수 scope 조정을 위해 분리)
+            let futureSessAmt = 0;
+            if (j === mhArr.length - 1) {
+                let pSum = 0;
+                for(let k=0; k<j; k++) pSum += Math.round(ot * (mhArr[k] / totalHours) / 10) * 10;
+                futureSessAmt = ot - pSum;
+            } else {
+                futureSessAmt = Math.round(ot * (mhArr[j] / totalHours) / 10) * 10;
+            }
+            rt += futureSessAmt;
         }
     }
 
@@ -854,15 +891,12 @@ window.addRfToTemp = function() {
     const curTotT = tempRfs.reduce((sum, r) => sum + r.rt, 0); const curTotB = tempRfs.reduce((sum, r) => sum + r.rb, 0);
     if (curTotT + rt > ot || curTotB + rb > ob) { alert('❌ 초과 환불 오류!\n추가하려는 금액이 분기 기준 금액을 초과합니다.'); return; }
     
-    // 💡 선택된 차수 기반 메모 문자열 생성
-    let progStr = '';
     const sessIdx = num(val('r_sess_idx'));
-    if (ty === 'STUDENT' || ty === 'DISEASE') {
-        progStr = `${sessIdx + 1}차 ${ah}H`;
-    }
+    const tyNmBase = {'BEFORE':'개시전', 'DISEASE':'일할', 'STUDENT':'포기'}[ty] || '';
     
-    const tyNmBase = {'BEFORE':'개시전', 'DISEASE':'결석', 'STUDENT':'포기'}[ty] || '';
-    const memoStr = ty === 'BEFORE' ? `[${tyNmBase}]` : `[${tyNmBase}] ${progStr}`;
+    // ❗ 요청4 반영: 직관적인 환불 금액 메모 포맷 [환불:일할(1차)] 13,500
+    // 개시전은 차수입력이 없었으나 통일감을 위해 적용
+    const memoStr = `[환불:${tyNmBase}(${sessIdx + 1})] ${fmt(Math.round(rt / 10) * 10)}`;
     
     tempRfs.push({ ty, tyNm: memoStr, ah, rt, rb, sessIdx });
     $('r_ah').value = 0; $('r_bk').checked = false; 
@@ -883,10 +917,15 @@ function renderRfList() {
 window.applyRfFinal = function() {
     const e = E[curEditIdx]; const base = C[e.course]?.[e.q] || {t:0, b:0};
     e.refunds = tempRfs; e.rT = tempRfs.reduce((sum, r) => sum + r.rt, 0); e.rB = tempRfs.reduce((sum, r) => sum + r.rb, 0);
-    e.cT = base.t - e.rT; e.cB = base.b - e.rB;
     if (e.refunds.length > 0) { 
-        e.mm = e.refunds.map(r => r.tyNm).join(', '); // 역산된 메모 문자열 적용
-    } else { e.mm = ''; e.cT = null; e.cB = null; }
+        e.mm = e.refunds.map(r => r.tyNm).join(', ');
+        // 환불 시에도 3스텝에서 사용자가 개별 수정한 원수강료(e.cT)를 보존하기 위해 덮어쓰지 않음.
+        // 다만 아직 수정한 적이 없어 null 상태라면, 요금표 원금(base.t)을 초기값으로 명시적 할당해 줌.
+        if (e.cT === null) e.cT = base.t;
+        if (e.cB === null) e.cB = base.b;
+    } else {
+        e.mm = ''; e.cT = null; e.cB = null;
+    }
     save(); renderE(); mdlR.hide();
 };
 
@@ -894,28 +933,18 @@ window.applyRfFinal = function() {
 // STEP 4 : 정산 및 조회 로직
 // =====================================================
 
-window.toggleCloseSess = function() {
-    const q = val('s4_q');
-    if (q === 'ALL') { alert('특정 분기를 선택한 상태에서만 마감이 가능합니다.'); return; }
-    const sessStr = prompt('마감할 차수를 입력하세요 (예: 1, 2, 3)');
-    if (!sessStr) return;
-    const sessIdx = parseInt(sessStr) - 1;
-    if (isNaN(sessIdx) || sessIdx < 0) { alert('올바른 차수 숫자를 입력하세요.'); return; }
-
-    const targetQ = num(q);
+window.toggleSessCheck = function(targetQ, sessIdx, isChecked) {
     const key = `${targetQ}_${sessIdx}`;
-
-    if (SysSet.closedSess[key]) {
-        if (confirm(`해당 분기 ${sessIdx+1}차수는 이미 마감되어 있습니다. 마감을 해제하시겠습니까?`)) {
+    if (!isChecked) {
+        if (confirm(`해당 분기 ${sessIdx+1}차 마감을 해제하시겠습니까?`)) {
             delete SysSet.closedSess[key];
             save(); alert('마감이 해제되었습니다.'); renderSetTabs();
+        } else {
+            $('chkClose_'+sessIdx).checked = true; // 되돌리기
         }
     } else {
-        if (confirm(`해당 분기 ${sessIdx+1}차수를 마감하시겠습니까? 현재까지의 지원금 차감 내역이 영구 고정됩니다.`)) {
-            // 현재 화면의 스냅샷을 저장 (간단히 하기 위해 Hs의 현재 상태를 복사하여 묶음)
+        if (confirm(`해당 분기 ${sessIdx+1}차수를 마감하시겠습니까?\n현재 시점의 지원금 차감 내역 및 청구액이 영구 고정됩니다.`)) {
             const snapshot = {};
-            // 현재 차수(sessIdx)의 청구 데이터만 미리 추출하여 저장
-            const targetSess = sessIdx + 1;
             const ls = Hs.filter(h => h.q === targetQ);
             ls.forEach(h => {
                 const mhArr = (C[h.c]?.[targetQ]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
@@ -955,7 +984,6 @@ window.toggleCloseSess = function() {
                     if (toDed > 0 && freeA > 0) { const d = Math.min(toDed, freeA); freeA -= d; toDed -= d; }
                 } else if (cTot < actualSessAmt) {
                     let toAdd = actualSessAmt - cTot;
-                    // 청구서(getInvoiceData) 배분 로직과 동일하게 통일 (자부담 우선 배분)
                     if (h.sT > 0 || (h.tc === 0 && h.tf === 0)) { selfA += toAdd; }
                     else if (h.tc > 0) { cho3A += toAdd; }
                     else { freeA += toAdd; }
@@ -965,6 +993,8 @@ window.toggleCloseSess = function() {
             });
             SysSet.closedSess[key] = snapshot;
             save(); alert('성공적으로 마감되었습니다.'); renderSetTabs();
+        } else {
+            $('chkClose_'+sessIdx).checked = false; // 되돌리기
         }
     }
 };
@@ -1033,7 +1063,33 @@ function renderS4CourseFilter() {
 }
 
 window.renderSetTabs = function() {
-    const q = val('s4_q'); const hList = Hs.filter(h => (q==='ALL' || String(h.q)===q) && (s4_filt==='A' || (s4_filt==='F'&&h.isF) || (s4_filt==='C'&&h.isC)));
+    const q = val('s4_q');
+
+    // 차수 마감 체크박스 렌더링
+    const chkWrap = $('closeSessChecks');
+    if (q === 'ALL') {
+        chkWrap.style.setProperty('display', 'none', 'important');
+    } else {
+        chkWrap.style.setProperty('display', 'flex', 'important');
+        let chks = `<span class="small fw-bold text-dark"><i class="bi bi-lock-fill"></i> 마감:</span>`;
+        // 강좌 중 최대 차수 구하기
+        let maxSess = 1;
+        Object.keys(C).forEach(c => {
+            const m = (C[c]?.[q]?.mh || '8,8,8').split(',').filter(x => num(x) > 0).length;
+            if (m > maxSess) maxSess = m;
+        });
+        for (let i = 0; i < maxSess; i++) {
+            const key = `${q}_${i}`;
+            const isChecked = SysSet.closedSess[key] ? 'checked' : '';
+            chks += `
+                <div class="form-check form-check-inline mb-0">
+                    <input class="form-check-input border-warning" type="checkbox" id="chkClose_${i}" ${isChecked} onchange="toggleSessCheck(${q}, ${i}, this.checked)">
+                    <label class="form-check-label small fw-bold text-dark" for="chkClose_${i}">${i+1}차</label>
+                </div>`;
+        }
+        chkWrap.innerHTML = chks;
+    }
+ const hList = Hs.filter(h => (q==='ALL' || String(h.q)===q) && (s4_filt==='A' || (s4_filt==='F'&&h.isF) || (s4_filt==='C'&&h.isC)));
     
     const st = {}, g = {cnt:0,tO:0,bO:0,cc:0,tc:0,bc:0,fc:0,tf:0,bf:0,st:0,sb:0};
     hList.forEach(h => {
@@ -1083,10 +1139,7 @@ window.renderSetTabs = function() {
     cList.forEach(h => { crsH += `<tr><td>${h.q}분기</td><td>${h.dp}</td><td class="fw-bold"><span class="clickable" onclick="openStuModal('${h.id}')">${h.nm}</span></td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`; });
     $('tbCrseDtl').innerHTML = crsH;
 
-    setTimeout(() => {
-        const thead = $('tbCrseDtl').previousElementSibling; const thHeight = thead ? thead.offsetHeight - 1 : 65; 
-        document.querySelectorAll('#tbCrseDtl .sticky-total-row td').forEach(td => { td.style.position = 'sticky'; td.style.top = thHeight + 'px'; td.style.zIndex = '9'; td.style.backgroundColor = '#fff3cd'; td.style.boxShadow = 'inset 0 -2px 0 #ccc'; });
-    }, 0);
+
 };
 
 window.openStuModal = function(id) {
@@ -1175,10 +1228,44 @@ window.exEdu = function() {
 };
 
 // ② 교육비 청구서 데이터 생성 및 렌더링 (3단계 분리 및 강사료 기준 연산 적용)
-function getInvoiceData() {
+function getInvoiceData(forceSessIdx = null) {
     const q = num(val('p_qInvoice'));
-    const targetSess = num(val('p_sInvoice'));
-    const sIdx = targetSess - 1;
+    const sessVal = val('p_sInvoice');
+
+    // 전체 차수 합산(ALL) 처리 로직: 각 차수별로 재귀호출하여 합산
+    if (sessVal === 'ALL' && forceSessIdx === null) {
+        let maxSess = 1;
+        Object.keys(C).forEach(c => {
+            const m = (C[c]?.[q]?.mh || '8,8,8').split(',').filter(x => num(x) > 0).length;
+            if (m > maxSess) maxSess = m;
+        });
+
+        let mergedGroup = {};
+        for(let i=0; i<maxSess; i++) {
+            const sessData = getInvoiceData(i);
+            sessData.forEach(g => {
+                if(!mergedGroup[g.c]) {
+                    mergedGroup[g.c] = JSON.parse(JSON.stringify(g));
+                } else {
+                    const t = mergedGroup[g.c];
+                    t.baseT += g.baseT; t.baseInst += g.baseInst; t.baseMgmt += g.baseMgmt;
+                    t.selfFee += g.selfFee; t.selfInst += g.selfInst; t.selfMgmt += g.selfMgmt;
+                    t.cho3Fee += g.cho3Fee; t.cho3Inst += g.cho3Inst; t.cho3Mgmt += g.cho3Mgmt;
+                    t.freeFee += g.freeFee; t.freeInst += g.freeInst; t.freeMgmt += g.freeMgmt;
+                    t.totFee += g.totFee; t.totInst += g.totInst; t.totMgmt += g.totMgmt;
+                    t.memos = [...new Set([...t.memos, ...g.memos])];
+                    // 인원수는 최대치 유지 (합산 시 뻥튀기 방지)
+                    t.selfCnt = Math.max(t.selfCnt, g.selfCnt);
+                    t.cho3Cnt = Math.max(t.cho3Cnt, g.cho3Cnt);
+                    t.freeCnt = Math.max(t.freeCnt, g.freeCnt);
+                    t.totCnt = Math.max(t.totCnt, g.totCnt);
+                }
+            });
+        }
+        return Object.values(mergedGroup).sort((a,b) => a.c.localeCompare(b.c));
+    }
+
+    const sIdx = forceSessIdx !== null ? forceSessIdx : num(sessVal) - 1;
     const ls = Hs.filter(h => h.q === q);
 
     const getBaseName = (c) => c.replace(/\s*\([A-Za-z가-힣0-9]+\)$/, '').trim();
@@ -1304,7 +1391,7 @@ window.renderPreviewInvoice = function() {
             <td class="text-warning">${fmt(totSelf)}</td><td colspan="3"></td>
             <td class="text-primary">${fmt(totCho3)}</td><td colspan="3"></td>
             <td class="text-success">${fmt(totFree)}</td><td colspan="3"></td>
-            <td class="text-danger fs-6">${fmt(totAll)}</td><td colspan="3"></td>
+            <td class="text-danger fs-6">${fmt(totAll)}</td><td colspan="4"></td>
         </tr>`;
         data.forEach((g, idx) => {
             const uniqueMemos = [...new Set(g.memos)]; 
@@ -1332,41 +1419,42 @@ window.exInvoice = function() {
 
     const wb = XLSX.utils.book_new();
     const aoa = [
-        [`인천갈월초등학교 방과후학교 ${q}분기 ${targetSess}차 교육비 청구서`], [],
+        [`인천갈월초등학교 방과후학교 ${q}분기 ${val('p_sInvoice') === 'ALL' ? '전체' : targetSess + '차'} 교육비 청구서`], [],
         [`1. 교육기간 : (직접 입력)`], [`2. 입금계좌 : (직접 입력)`],
         [`3. 청구내용 : 위와 같이 교육을 실시함에 따라 다음과 같이 대금을 청구합니다.`], [],
         [ '순번', '부서명', '1인당 수강료', '1인당 강사료', '1인당 수용비',
           '수익자 부담 인원', '수익자 수강료', '수익자 강사료', '수익자 수용비',
           '초3 지원금 인원', '초3 수강료', '초3 강사료', '초3 수용비',
           '자유수강 지원 인원', '자유 수강료', '자유 강사료', '자유 수용비',
-          '합계 인원', '합계 수강료', '합계 강사료', '합계 수용비', '비고' ]
+          '합계 인원', '합계 수강료', '합계 강사료', '합계 수용비', '차액(환불등)', '비고' ]
     ];
 
     let idx = 1;
     data.forEach(g => {
         const uniqueMemos = [...new Set(g.memos)]; 
+        const diffFee = g.totFee - (g.baseT * g.totCnt);
         aoa.push([
             idx++, g.c, g.baseT, g.baseInst, g.baseMgmt,
             g.selfCnt, g.selfFee, g.selfInst, g.selfMgmt,
             g.cho3Cnt, g.cho3Fee, g.cho3Inst, g.cho3Mgmt,
             g.freeCnt, g.freeFee, g.freeInst, g.freeMgmt,
             g.totCnt, g.totFee, g.totInst, g.totMgmt,
-            uniqueMemos.join(', ')
+            diffFee, uniqueMemos.join(', ')
         ]);
     });
 
     let exTotSelf=0, exTotCho3=0, exTotFree=0, exTotAll=0;
     data.forEach(g => { exTotSelf+=g.selfFee; exTotCho3+=g.cho3Fee; exTotFree+=g.freeFee; exTotAll+=g.totFee; });
-    aoa.push(['총계', '', '', '', '', '', exTotSelf, '', '', '', exTotCho3, '', '', '', exTotFree, '', '', '', exTotAll, '', '', '']);
+    aoa.push(['총계', '', '', '', '', '', exTotSelf, '', '', '', exTotCho3, '', '', '', exTotFree, '', '', '', exTotAll, '', '', '', '']);
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!merges'] = [
-        { s: {r:0, c:0}, e: {r:0, c:21} },
-        { s: {r:2, c:0}, e: {r:2, c:3} }, { s: {r:2, c:4}, e: {r:2, c:21} },
-        { s: {r:3, c:0}, e: {r:3, c:3} }, { s: {r:3, c:4}, e: {r:3, c:21} },
-        { s: {r:4, c:0}, e: {r:4, c:21} }
+        { s: {r:0, c:0}, e: {r:0, c:22} },
+        { s: {r:2, c:0}, e: {r:2, c:3} }, { s: {r:2, c:4}, e: {r:2, c:22} },
+        { s: {r:3, c:0}, e: {r:3, c:3} }, { s: {r:3, c:4}, e: {r:3, c:22} },
+        { s: {r:4, c:0}, e: {r:4, c:22} }
     ];
     XLSX.utils.book_append_sheet(wb, ws, `${targetSess}차 청구서`);
-    XLSX.writeFile(wb, `${q}분기_${targetSess}차_교육비청구서(업체용).xlsx`);
+    XLSX.writeFile(wb, `${q}분기_${val('p_sInvoice') === 'ALL' ? '전체합산' : targetSess + '차'}_교육비청구서.xlsx`);
 };
 
 // ③ 환불 결의 내역서
