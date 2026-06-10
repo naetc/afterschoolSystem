@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>방과후 스마트 정산 시스템 v2.7</title>
+    <title>방과후 스마트 정산 시스템</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -27,17 +27,6 @@
         .sub-nav .nav-link.active { background:#fff; color:#212529; font-weight:bold; border-top:3px solid #dc3545; }
         .input-fix { width: 100%; min-width: 150px; }
         .step5-preview-table th, .step5-preview-table td { font-size: 0.8rem; white-space: nowrap; }
-        .sticky-total-row th, .sticky-total-row td { position: sticky; top: var(--sticky-top, 40px); z-index: 9; background: #fff3cd !important; box-shadow: inset 0 -2px 0 #ccc; }
-        /* 헤더 1행 틀고정 누락 수정 */
-        #s4t2 table thead tr:nth-child(1) th, #s4t3 table thead tr:nth-child(1) th, #s5t_inv table thead tr:nth-child(1) th { position: sticky; top: 0; z-index: 11; background: #e9ecef !important; box-shadow: inset 0 -2px 0 #dee2e6; }
-        #s5t_inv table thead tr:nth-child(1) th { background: #cff4fc !important; }
-
-        #s4t2 table thead tr:nth-child(2) th, #s4t3 table thead tr:nth-child(2) th, #s5t_inv table thead tr:nth-child(2) th { position: sticky; top: 29px; z-index: 10; background: #e9ecef !important; box-shadow: inset 0 -2px 0 #dee2e6; }
-        #s5t_inv table thead tr:nth-child(2) th { background: #cff4fc !important; }
-        #s4t3 table .sticky-total-row td { --sticky-top: 59px; }
-        #s5t_edu table .sticky-total-row td { --sticky-top: 29px; }
-        #s5t_inv table .sticky-total-row td { --sticky-top: 59px; }
-        #s5t_ros table .sticky-total-row td { --sticky-top: 29px; }
     </style>
 </head>
 <body>
@@ -45,7 +34,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
     <h4 id="sysTitle" class="fw-bold text-primary mb-0 d-flex align-items-center gap-3">
         <span>방과후 스마트 정산 시스템 for bubuk</span>
-        <span class="badge bg-danger fs-6" id="verBadge">v2.7</span>
+        <span class="badge bg-danger fs-6" id="verBadge">v2.5</span>
     </h4>
     <div class="d-flex align-items-center gap-3">
         <div id="storageUsage" class="small fw-bold text-muted mb-0 bg-light px-2 py-1 rounded border">💾 용량 확인 중...</div>
@@ -70,6 +59,23 @@
     <div class="tab-pane fade show active" id="step1">
         <div class="row">
             <div class="col-md-3">
+                <div class="card p-3 mb-3 border-secondary bg-light shadow-sm">
+                    <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-gear-fill"></i> 시스템 전역 설정</h6>
+                    <div class="small fw-bold text-muted mb-1">수용비 일괄 공제 설정:</div>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="form-check form-check-inline mb-0 me-1">
+                            <input class="form-check-input border-secondary" type="radio" name="sys_fTy" id="sys_fTy_R" value="R" onchange="updateSysSet()" checked>
+                            <label class="form-check-label small" for="sys_fTy_R">비율(%)</label>
+                        </div>
+                        <div class="form-check form-check-inline mb-0">
+                            <input class="form-check-input border-secondary" type="radio" name="sys_fTy" id="sys_fTy_F" value="F" onchange="updateSysSet()">
+                            <label class="form-check-label small" for="sys_fTy_F">정액(원)</label>
+                        </div>
+                    </div>
+                    <input type="number" id="sys_fVal" class="form-control form-control-sm text-center fw-bold text-primary mb-1" value="5" oninput="updateSysSet()">
+                    <div class="small text-danger fw-bold" id="sys_fDesc" style="font-size: 0.75rem;">강사료 기준 5% 수용비 산출</div>
+                </div>
+
                 <div class="card p-3 mb-3 border-dark shadow-sm">
                     <h6 class="fw-bold text-dark mb-3">📥 엑셀 일괄 등록</h6>
                     <button class="btn btn-outline-dark btn-sm w-100 mb-2" onclick="dlSampleCourse()">양식 다운로드</button>
@@ -83,12 +89,10 @@
 
                 <div class="card p-3 border-primary shadow-sm">
                     <h6 class="fw-bold text-primary mb-2">✍️ 신규 강좌 직접 등록</h6>
-                    <input type="text" id="c_dept" class="form-control form-control-sm mb-1" placeholder="부서명 (예: 과학실험)">
-                    <div class="input-group input-group-sm mb-2"><span class="input-group-text">강좌수</span><input type="number" id="c_cnt" class="form-control text-center" value="1" min="1"></div>
-                    <input type="text" id="c_inst_m" class="form-control form-control-sm fn-input mb-1" placeholder="강사료(월기준)">
-                    <input type="text" id="c_mgmt_m" class="form-control form-control-sm fn-input mb-1" placeholder="수용비(월기준)">
-                    <input type="text" id="c_b" class="form-control form-control-sm fn-input mb-1" placeholder="교재비(분기)">
-                    <div class="input-group input-group-sm mb-3"><span class="input-group-text">주간단위</span><input type="number" id="c_unit" class="form-control text-center" value="1" min="1"></div>
+                    <input type="text" id="c_nm" class="form-control form-control-sm mb-2" placeholder="강좌명">
+                    <input type="text" id="c_t" class="form-control form-control-sm fn-input mb-2" placeholder="수강료(총액)">
+                    <input type="text" id="c_b" class="form-control form-control-sm fn-input mb-2" placeholder="교재비">
+                    <input type="text" id="c_mh" class="form-control form-control-sm mb-3" placeholder="차수별 시수(8,8,8)">
                     <button class="btn btn-primary btn-sm w-100 fw-bold" onclick="addCourse()">등록</button>
                 </div>
             </div>
@@ -194,12 +198,11 @@
                             <button class="btn btn-sm btn-outline-primary" id="fBtnC" onclick="setFilt('C')">초3지원만</button>
                         </div>
                     </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="fw-bold small text-muted">분기:</span>
+                    <div>
+                        <span class="fw-bold small text-muted me-2">분기:</span>
                         <select id="s4_q" class="form-select form-select-sm d-inline-block w-auto fw-bold text-danger border-danger" onchange="renderSetTabs()">
                             <option value="ALL">전체</option><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option>
                         </select>
-                        <div id="closeSessChecks" class="d-flex gap-2 ms-2 bg-warning bg-opacity-10 p-1 px-2 rounded border border-warning" style="display:none !important;"></div>
                     </div>
                 </div>
                 <button class="btn btn-success btn-sm fw-bold" onclick="exportStep4Excel()"><i class="bi bi-download"></i> 엑셀 다운로드</button>
@@ -244,7 +247,7 @@
                         <div class="d-flex gap-2 align-items-center">
                             <span class="fw-bold small">분기/차수:</span>
                             <select id="p_qInvoice" class="form-select form-select-sm w-auto border-info" onchange="renderPreviewInvoice()"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select>
-                            <select id="p_sInvoice" class="form-select form-select-sm w-auto border-info" onchange="renderPreviewInvoice()"><option value="ALL">전체 차수 합산</option><option value="1">1차</option><option value="2">2차</option><option value="3">3차</option></select>
+                            <select id="p_sInvoice" class="form-select form-select-sm w-auto border-info" onchange="renderPreviewInvoice()"><option value="1">1차</option><option value="2">2차</option><option value="3">3차</option><option value="4">4차</option></select>
                         </div>
                         <button class="btn btn-info btn-sm fw-bold text-white px-4" onclick="exInvoice()">엑셀 다운로드</button>
                     </div>
@@ -253,7 +256,7 @@
                             <thead class="table-info">
                                 <tr>
                                     <th rowspan="2">순번</th><th rowspan="2">강좌명</th>
-                                    <th colspan="3">1인당 기준액</th><th colspan="4">수익자 부담</th><th colspan="4">초3 지원</th><th colspan="4">자유수강 지원</th><th colspan="4">합계</th><th rowspan="2" class="table-warning">차액<br>(환불등)</th><th rowspan="2">비고</th>
+                                    <th colspan="3">1인당 기준액</th><th colspan="4">수익자 부담</th><th colspan="4">초3 지원</th><th colspan="4">자유수강 지원</th><th colspan="4">합계</th><th rowspan="2">비고</th>
                                 </tr>
                                 <tr>
                                     <th>수강료</th><th>강사료</th><th>수용비</th>
@@ -294,7 +297,7 @@
         <div class="card p-4 border-info bg-light" style="max-height: 750px; overflow-y: auto;">
             <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom border-info">
                 <h5 class="fw-bold text-info mb-0"><i class="bi bi-book-half"></i> 방과후 스마트 정산 시스템 상세 매뉴얼</h5>
-                <span class="badge bg-secondary fs-6" id="manualVersion">v2.7</span>
+                <span class="badge bg-secondary fs-6" id="manualVersion">v2.5</span>
             </div>
             
             <div class="mb-4">
@@ -326,14 +329,13 @@
                     <div class="col-md-12">
                         <div class="p-3 bg-white border rounded shadow-sm">
                             <strong class="text-primary">STEP 3. 수강생 및 환불 (실무 입력)</strong>
-                            <p class="small text-muted mt-2 mb-0">수강생을 등록하고 환불이 발생하면 <strong>[환불/수정]</strong> 버튼을 누릅니다. 환불이 발생한 '차수'를 지정하고 진행/결석 시수를 입력하면, 시스템이 해당 차수의 원수강료를 기준으로 환불액을 <strong>올림 처리</strong>하여 학부모에게 유리하게 산출합니다. 환불을 처리하면 <strong>`[환불:포기(1차)] 13,500` 형태로 비고란에 환불 내역이 자동 기록</strong>됩니다.</p>
+                            <p class="small text-muted mt-2 mb-0">수강생을 등록하고 결석/포기가 발생하면 <strong>[환불/수정]</strong> 버튼을 누릅니다. 환불을 처리하면 <strong>시스템이 남은 시수를 자동으로 역산하여 `[포기] 2차 0H` 형태로 비고란에 기록</strong>합니다. 또한 <strong>[☑️ 환불/결석 학생만 보기]</strong> 스위치를 통해 환불자만 빠르게 조회할 수 있습니다.</p>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="p-3 bg-white border rounded shadow-sm h-100">
                             <strong class="text-danger">STEP 4. 정산 및 조회</strong>
-                            <p class="small text-muted mt-2 mb-0">최종 징수액과 지원금 차감 내역을 확인합니다. 표 제목을 클릭해 원하는 조건으로 정렬하세요.<br>
-                            * <strong>차수 마감 기능:</strong> 분기 선택 드롭다운 옆의 'n차 마감' 체크박스를 클릭하면, 해당 시점의 지원금/자부담 차감 내역이 영구적으로 고정(스냅샷)됩니다. 마감 이후에 대상자가 추가/변경되더라도 기존 청구 금액은 변하지 않습니다.</p>
+                            <p class="small text-muted mt-2 mb-0">최종 징수액과 지원금 차감 내역을 확인합니다. 표 제목을 클릭해 원하는 조건으로 정렬하세요.</p>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -370,24 +372,23 @@
                 </div>
                 <div class="p-3 bg-light rounded border mb-3">
                     <label class="small fw-bold text-dark mb-2">새로운 환불 건 추가</label>
-                    <div class="mb-2">
-                        <select id="r_type" class="form-select form-select-sm border-danger mb-2">
-                            <option value="BEFORE">수강 개시 전 (전액 반환)</option>
-                            <option value="DISEASE">결석/감염병 등 (입력한 결석 시수만큼 일할 반환)</option>
-                            <option value="STUDENT">학습자 포기 (진행 시수 기준 구간 반환)</option>
-                        </select>
-                        <select id="r_sess_idx" class="form-select form-select-sm border-primary"></select>
-                    </div>
                     <div class="row g-2 mb-2">
                         <div class="col-4">
                             <div class="input-group input-group-sm"><span class="input-group-text">총시수</span><input type="number" id="r_qh" class="form-control text-center bg-light" readonly></div>
                         </div>
                         <div class="col-4">
-                            <div class="input-group input-group-sm" title="차수별 전체 시수 쉼표 구분"><span class="input-group-text">차수별</span><input type="text" id="r_mh" class="form-control text-center bg-white" placeholder="예: 4,4,4"></div>
+                            <div class="input-group input-group-sm" title="월별 시수가 다르면 쉼표로 구분"><span class="input-group-text">차수별</span><input type="text" id="r_mh" class="form-control text-center bg-white" placeholder="예: 7,6,8"></div>
                         </div>
                         <div class="col-4">
-                            <div class="input-group input-group-sm" title="선택한 차수 내에서의 시수만 입력하세요."><span class="input-group-text bg-warning text-dark">결석/진행</span><input type="number" id="r_ah" class="form-control text-center fw-bold border-warning bg-white" value="0"></div>
+                            <div class="input-group input-group-sm"><span class="input-group-text bg-warning">결석/진행</span><input type="number" id="r_ah" class="form-control text-center fw-bold border-warning bg-white" value="0"></div>
                         </div>
+                    </div>
+                    <div class="mb-2">
+                        <select id="r_type" class="form-select form-select-sm border-danger">
+                            <option value="BEFORE">수강 개시 전 (전액 반환)</option>
+                            <option value="DISEASE">결석/감염병 등 (입력한 시수만큼 일할 반환)</option>
+                            <option value="STUDENT">학습자 포기 (진행 시수 기준 구간 반환)</option>
+                        </select>
                     </div>
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="checkbox" id="r_bk">
@@ -480,7 +481,7 @@ let f_eq='ALL', f_ec='ALL';
 let s4_filt='A', curS4Tab='STAT', s4_cFilter='ALL';
 let stuSortCol = '', stuSortAsc = false; 
 let mdlR, mdlS, curEditIdx = -1, tempRfs = [];
-let SysSet = { fTy: 'R', fVal: 5, closedSess: {} };
+let SysSet = { fTy: 'R', fVal: 5 };
 const KEY = 'bgh_v36';
 
 function loadData() {
@@ -490,7 +491,6 @@ function loadData() {
         const d = JSON.parse(raw);
         C = d.C || {};
         SysSet = d.SysSet || { fTy: 'R', fVal: 5 };
-        SysSet.closedSess = SysSet.closedSess || {};
         F = (d.F || []).map(x => ({ g: +(x.g||0), b: +(x.b||0), n: +(x.n||0), name: String(x.name||'') }));
         E = (d.E || []).map(x => {
             let refs = x.refunds || [];
@@ -520,7 +520,18 @@ window.getSplitAmts = function(totalS) {
     }
 };
 
+window.updateSysSet = function() {
+    SysSet.fTy = $('sys_fTy_R').checked ? 'R' : 'F';
+    SysSet.fVal = num($('sys_fVal').value);
+    $('sys_fDesc').textContent = SysSet.fTy === 'R' ? `강사료 기준 ${SysSet.fVal}% 수용비 산출` : `모든 강좌 수강료에서 ${fmt(SysSet.fVal)}원 공제`;
+    save(); renderC();
+};
 
+function applySysSetUI() {
+    if(SysSet.fTy === 'R') $('sys_fTy_R').checked = true; else $('sys_fTy_F').checked = true;
+    $('sys_fVal').value = SysSet.fVal;
+    $('sys_fDesc').textContent = SysSet.fTy === 'R' ? `강사료 기준 ${SysSet.fVal}% 수용비 산출` : `모든 강좌 수강료에서 ${fmt(SysSet.fVal)}원 공제`;
+}
 
 window.maskNames = function() {
     if(!confirm('모든 학생의 이름을 마스킹(블라인드) 처리하시겠습니까? (되돌릴 수 없으니 반드시 백업을 먼저 하세요!)')) return;
@@ -548,7 +559,7 @@ function updateStorageUsage() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    loadData(); updateStorageUsage();
+    loadData(); applySysSetUI(); updateStorageUsage();
 
     document.addEventListener('input', e => {
         if (e.target.classList.contains('fn-input') || e.target.classList.contains('fmt-num')) {
@@ -586,8 +597,8 @@ window.addEventListener('DOMContentLoaded', () => {
 // =====================================================
 window.dlSampleCourse = function() {
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{부서명:'과학실험', 강좌수:2, '강사료(월기준)':30000, '수용비(월기준)':2000, 교재비:50000, 주간단위:1}]), '강좌목록');
-    XLSX.writeFile(wb, '강좌정보_일괄양식.xlsx');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{강좌명:'창의로봇', 수강료:150000, 교재비:50000, 차수별시수:'8,8,8'}]), '강좌목록');
+    XLSX.writeFile(wb, '강좌정보_양식.xlsx');
 };
 
 window.upCourse = async function() {
@@ -597,63 +608,21 @@ window.upCourse = async function() {
         if (!rows.length) { alert('엑셀에 데이터가 없습니다.'); return; }
         let added = 0, tot = 0;
         rows.forEach(row => {
-            const dept = String(row['부서명'] || row['강좌명'] || '').trim(); if (!dept) return;
-            tot++;
-            const cnt = num(row['강좌수']) || 1;
-            const inst_m = num(row['강사료(월기준)'] || row['강사료']), mgmt_m = num(row['수용비(월기준)'] || row['수용비']);
-            const b = num(row['교재비'] || row['재료비'] || 0);
-            const unit = num(row['주간단위']) || 1;
-
-            const t = (inst_m + mgmt_m) * 3;
-            const mhSess = unit * 4;
-            const mh = `${mhSess},${mhSess},${mhSess}`;
-
-            for (let i = 0; i < cnt; i++) {
-                let nm = dept;
-                if (cnt > 1) {
-                    const suffix = String.fromCharCode(65 + i);
-                    nm = `${dept}(${suffix})`;
-                }
-                C[nm] = {
-                    1:{t, b, mh, inst_m, mgmt_m, unit},
-                    2:{t, b, mh, inst_m, mgmt_m, unit},
-                    3:{t, b, mh, inst_m, mgmt_m, unit},
-                    4:{t, b, mh, inst_m, mgmt_m, unit}
-                };
-                added++;
-            }
+            const nm = String(row['강좌명'] || row['과목명'] || row['부서명'] || '').trim(); if (!nm) return;
+            tot++; const t = num(row['수강료'] || row['강사비'] || 0), b = num(row['교재비'] || row['재료비'] || 0);
+            const mh = String(row['차수별시수'] || row['시수'] || '8,8,8').trim();
+            C[nm] = {1:{t,b,mh}, 2:{t,b,mh}, 3:{t,b,mh}, 4:{t,b,mh}}; added++;
         });
-        save(); renderC(); alert(`✅ 강좌 업로드 완료\n- 원본 부서: ${tot}건\n- 개설 강좌: ${added}건`);
+        save(); renderC(); alert(`✅ 강좌 업로드 완료\n- 전체: ${tot}건\n- 등록: ${added}건`);
     } catch(err) { alert('❌ 엑셀 처리 오류\n' + err.message); } 
     finally { $('fileCourse').value = ''; if($('fileCourseNm')) $('fileCourseNm').textContent = '선택된 파일 없음'; }
 };
 
 window.addCourse = function() {
-    const dept = val('c_dept'); if (!dept) return;
-    const cnt = num($('c_cnt').value) || 1;
-    const inst_m = num(val('c_inst_m')), mgmt_m = num(val('c_mgmt_m')), b = num(val('c_b'));
-    const unit = num($('c_unit').value) || 1;
-
-    const t = (inst_m + mgmt_m) * 3; // 분기 수강료 = 월 수강료 * 3
-    const mhSess = unit * 4;
-    const mh = `${mhSess},${mhSess},${mhSess}`; // 분기당 12회, 차수당 4회 기준
-
-    for (let i = 0; i < cnt; i++) {
-        let nm = dept;
-        if (cnt > 1) {
-            const suffix = String.fromCharCode(65 + i); // A, B, C...
-            nm = `${dept}(${suffix})`;
-        }
-        C[nm] = {
-            1:{t, b, mh, inst_m, mgmt_m, unit},
-            2:{t, b, mh, inst_m, mgmt_m, unit},
-            3:{t, b, mh, inst_m, mgmt_m, unit},
-            4:{t, b, mh, inst_m, mgmt_m, unit}
-        };
-    }
-    save(); renderC();
-    ['c_dept','c_inst_m','c_mgmt_m','c_b'].forEach(id => $(id).value = '');
-    $('c_cnt').value = '1'; $('c_unit').value = '1'; $('c_dept').focus();
+    const nm = val('c_nm'); if (!nm) return;
+    const t = num(val('c_t')), b = num(val('c_b')), mh = val('c_mh') || '8,8,8';
+    C[nm] = {1:{t,b,mh}, 2:{t,b,mh}, 3:{t,b,mh}, 4:{t,b,mh}};
+    save(); renderC(); ['c_nm','c_t','c_b','c_mh'].forEach(id => $(id).value = ''); $('c_nm').focus();
 };
 
 window.updateC = function(nm, q, k, el) {
@@ -669,33 +638,21 @@ function renderC() {
     if (!keys.length) { $('tbCourse').innerHTML = '<tbody><tr><td colspan="20" class="text-muted py-3">등록된 강좌가 없습니다.</td></tr></tbody>'; safeRenderMatrix(); safeRenderS4CourseFilter(); updateCourseSelect(); return; }
     
     let h = `<thead class="table-light"><tr><th rowspan="2" class="align-middle">강좌명</th>`;
-    [1,2,3,4].forEach(q => h += `<th colspan="8" style="border-left:2px solid #aaa">${q}분기</th>`);
+    [1,2,3,4].forEach(q => h += `<th colspan="5" style="border-left:2px solid #aaa">${q}분기</th>`);
     h += `<th rowspan="2" class="align-middle">삭제</th></tr><tr>`;
-    [1,2,3,4].forEach(() => h += `<th style="border-left:2px solid #aaa" class="table-warning">월 수강료</th><th class="text-primary table-warning">월 강사료</th><th class="text-danger table-warning">월 수용비</th><th class="table-info">1단위 수강</th><th class="text-primary table-info">1단위 강사</th><th class="text-danger table-info">1단위 수용</th><th>교재비</th><th>시수</th>`);
+    [1,2,3,4].forEach(() => h += `<th style="border-left:2px solid #aaa">수강료(입력)</th><th class="text-primary">강사료(자동)</th><th class="text-danger">수용비(자동)</th><th>교재비</th><th>시수</th>`);
     h += `</tr></thead><tbody>`;
     
     keys.forEach(nm => {
         const safe = nm.replace(/'/g, "\\'"); h += `<tr><td class="fw-bold align-middle">${nm}</td>`;
         [1,2,3,4].forEach(q => {
-            const d = C[nm][q] || {t:0, b:0, mh:'4,4,4', inst_m:0, mgmt_m:0, unit:1};
-
-            const inst_m = d.inst_m || 0;
-            const mgmt_m = d.mgmt_m || 0;
-            const t_m = inst_m + mgmt_m;
-
-            const unitSess = (d.unit || 1) * 4; // 주간단위 * 4 (1차수 기준 전체 횟수)
-            const unit_t = Math.ceil((t_m / unitSess) / 10) * 10;
-            const unit_inst = Math.ceil((inst_m / unitSess) / 10) * 10;
-            const unit_mgmt = Math.ceil((mgmt_m / unitSess) / 10) * 10;
-
-            h += `<td style="border-left:2px solid #aaa" class="align-middle text-center fw-bold">${fmt(t_m)}</td>
-                  <td class="align-middle text-primary text-center" style="font-size:0.8rem;">${fmt(inst_m)}</td>
-                  <td class="align-middle text-danger text-center" style="font-size:0.8rem;">${fmt(mgmt_m)}</td>
-                  <td class="align-middle text-center fw-bold bg-light">${fmt(unit_t)}</td>
-                  <td class="align-middle text-primary text-center bg-light" style="font-size:0.8rem;">${fmt(unit_inst)}</td>
-                  <td class="align-middle text-danger text-center bg-light" style="font-size:0.8rem;">${fmt(unit_mgmt)}</td>
-                  <td><input type="text" class="fmt-num text-secondary" style="width:70px;" value="${fmt(d.b)}" onblur="updateC('${safe}',${q},'b',this)"></td>
-                  <td><input type="text" class="form-control form-control-sm text-center px-1" style="width:55px; font-size:0.8rem;" value="${d.mh||'4,4,4'}" onblur="updateC('${safe}',${q},'mh',this)"></td>`;
+            const d = C[nm][q] || {t:0, b:0, mh:'8,8,8'};
+            const splitAmts = getSplitAmts(d.t);
+            h += `<td style="border-left:2px solid #aaa"><input type="text" class="fmt-num" style="width:75px;" value="${fmt(d.t)}" onblur="updateC('${safe}',${q},'t',this)"></td>
+                  <td class="align-middle text-primary fw-bold text-center" style="font-size:0.8rem;">${fmt(splitAmts.inst)}</td>
+                  <td class="align-middle text-danger fw-bold text-center" style="font-size:0.8rem;">${fmt(splitAmts.mgmt)}</td>
+                  <td><input type="text" class="fmt-num text-secondary" style="width:75px;" value="${fmt(d.b)}" onblur="updateC('${safe}',${q},'b',this)"></td>
+                  <td><input type="text" class="form-control form-control-sm text-center px-1" style="width:50px; font-size:0.8rem;" value="${d.mh||'8,8,8'}" onblur="updateC('${safe}',${q},'mh',this)"></td>`;
         });
         h += `<td class="align-middle"><button class="btn btn-sm btn-outline-danger py-0" onclick="delCourse('${safe}')">삭제</button></td></tr>`;
     });
@@ -740,39 +697,21 @@ function renderF() {
 // STEP 3 : 수강생 및 환불 관리 로직
 // =====================================================
 window.dlSampleEnroll = function() {
-    const wb = XLSX.utils.book_new();
-    const cKeys = Object.keys(C);
-    if (!cKeys.length) {
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{학년:1, 반:1, 번호:1, 이름:'홍길동', 강좌명:'먼저 강좌를 개설해주세요', 수강료:'', 교재비:'', 비고:''}]), '명단');
-    } else {
-        cKeys.forEach(c => {
-            const safeC = c.substring(0, 31); // 엑셀 시트명 길이 제한
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{학년:'', 반:'', 번호:'', 이름:'', 수강료:'', 교재비:'', 비고:''}]), safeC);
-        });
-    }
-    XLSX.writeFile(wb, '수강명단_다중시트양식.xlsx');
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{학년:1, 반:1, 번호:1, 이름:'홍길동', 강좌명:'창의로봇', 수강료:'', 교재비:'', 비고:''}]), '명단'); XLSX.writeFile(wb, '수강명단_양식.xlsx');
 };
 window.upEnroll = async function() {
     const files = Array.from($('fileEnroll').files); if (!files.length) return;
     const q = num(val('exEnQ')); const exist = new Set(E.map(e => `${e.q}_${e.course}_${uid(e.g,e.b,e.n,e.name)}`)); let added = 0;
     for (const file of files) {
-        const buf = await readFileAsArrayBuffer(file);
-        const wb = XLSX.read(new Uint8Array(buf), {type:'array'});
-
-        wb.SheetNames.forEach(sheetName => {
-            const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {defval:''});
-            const course = sheetName.trim();
-            if (!C[course]) return; // 시스템에 없는 강좌 시트는 무시
-
-            for (const row of rows) {
-                const nm = String(row['이름']||row['성명']||'').trim();
-                if (!nm) continue;
-                const g = num(row['학년']), b = num(row['반']), n = num(row['번호']), id = `${q}_${course}_${uid(g,b,n,nm)}`;
-                if (exist.has(id)) continue;
-                E.push({ q, g, b, n, name: nm, course, cT: row['수강료'] ? num(row['수강료']) : (row['강사비'] ? num(row['강사비']) : null), cB: row['교재비'] ? num(row['교재비']) : null, rT: 0, rB: 0, mm: String(row['비고']||'').trim(), refunds: [] });
-                exist.add(id); added++;
-            }
-        });
+        const buf = await readFileAsArrayBuffer(file); const rows = parseXlsx(buf);
+        for (const row of rows) {
+            const course = String(row['강좌명']||row['과목명']||'').trim(), nm = String(row['이름']||row['성명']||'').trim();
+            if (!course || !nm || !C[course]) continue;
+            const g = num(row['학년']), b = num(row['반']), n = num(row['번호']), id = `${q}_${course}_${uid(g,b,n,nm)}`;
+            if (exist.has(id)) continue;
+            E.push({ q, g, b, n, name: nm, course, cT: row['수강료'] ? num(row['수강료']) : (row['강사비'] ? num(row['강사비']) : null), cB: row['교재비'] ? num(row['교재비']) : null, rT: 0, rB: 0, mm: String(row['비고']||'').trim(), refunds: [] });
+            exist.add(id); added++;
+        }
     }
     save(); renderE(); alert(`✅ 수강 명단 업로드 완료 (신규: ${added}건)`); $('fileEnroll').value = ''; $('fileEnrollNm').textContent = '선택된 파일 없음';
 };
@@ -817,23 +756,12 @@ function renderE() {
         return true;
     }).sort((a,b) => a.q - b.q);
 
-    let h = `<thead class="table-light"><tr><th>분기</th><th>학적</th><th>이름</th><th>강좌명</th><th>수강료(원금)</th><th>교재비(원금)</th><th class="text-danger">환불(수)</th><th class="text-danger">환불(교)</th><th>비고</th><th>관리</th></tr></thead><tbody>`;
+    let h = `<thead class="table-light"><tr><th>분기</th><th>학적</th><th>이름</th><th>강좌명</th><th>수강료</th><th>교재비</th><th>환불/비고</th><th>관리</th></tr></thead><tbody>`;
     ls.forEach(e => {
         const base = C[e.course]?.[e.q] || {t:0, b:0}; const t = (e.cT !== null && e.cT !== undefined) ? e.cT : base.t; const b = (e.cB !== null && e.cB !== undefined) ? e.cB : base.b;
         const hasR = e.refunds && e.refunds.length > 0;
         const btnR = `<button class="btn btn-sm ${hasR ? 'btn-warning fw-bold text-dark' : 'btn-outline-secondary'} py-1 px-2 me-1" onclick="opR(${e._i})"><i class="bi bi-calculator"></i> 환불/수정</button>`;
-        h += `<tr>
-            <td><span class="badge bg-secondary">${e.q}분기</span></td>
-            <td>${dsp(e.g,e.b,e.n)}</td>
-            <td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(e.g,e.b,e.n,e.name).replace(/'/g,"\\'")}')">${e.name}</span></td>
-            <td class="text-primary fw-bold">${e.course}</td>
-            <td><input class="fmt-num ${e.cT!==null?'text-primary fw-bold':''}" style="width:75px" value="${fmt(t)}" onblur="upE(${e._i},'cT',this)"></td>
-            <td><input class="fmt-num ${e.cB!==null?'text-primary fw-bold':''}" style="width:75px" value="${fmt(b)}" onblur="upE(${e._i},'cB',this)"></td>
-            <td class="text-danger fw-bold">${fmt(e.rT||0)}</td>
-            <td class="text-danger fw-bold">${fmt(e.rB||0)}</td>
-            <td><input class="form-control form-control-sm input-fix px-1" style="min-width:120px" value="${e.mm||''}" onblur="upM(${e._i},this)"></td>
-            <td>${btnR}<button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="delE(${e._i})"><i class="bi bi-trash"></i></button></td>
-        </tr>`;
+        h += `<tr><td><span class="badge bg-secondary">${e.q}분기</span></td><td>${dsp(e.g,e.b,e.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuModalSilent('${uid(e.g,e.b,e.n,e.name).replace(/'/g,"\\'")}')">${e.name}</span></td><td class="text-primary fw-bold">${e.course}</td><td><input class="fmt-num ${e.cT!==null?'text-primary fw-bold':''}" value="${fmt(t)}" onblur="upE(${e._i},'cT',this)"></td><td><input class="fmt-num ${e.cB!==null?'text-primary fw-bold':''}" value="${fmt(b)}" onblur="upE(${e._i},'cB',this)"></td><td><input class="form-control form-control-sm input-fix px-1" value="${e.mm||''}" onblur="upM(${e._i},this)"></td><td>${btnR}<button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="delE(${e._i})"><i class="bi bi-trash"></i></button></td></tr>`;
     });
     $('tbEnroll').innerHTML = h + '</tbody>';
 }
@@ -843,16 +771,9 @@ function renderE() {
 // =====================================================
 window.opR = function(i) {
     const e = E[i]; curEditIdx = i; tempRfs = JSON.parse(JSON.stringify(e.refunds || []));
-    const base = C[e.course]?.[e.q] || {t:0, b:0, mh:'4,4,4'};
+    const base = C[e.course]?.[e.q] || {t:0, b:0, mh:'8,8,8'};
     $('r_idx').value = i; $('r_nm').textContent = e.name; $('r_c').textContent = `${e.q}분기 ${e.course}`;
-    // ❗ 요청 반영: 3스텝에서 확정된(수정된) 학생의 원금 기준. 만약 아직 수정되지 않았으면 요금표 base 금액.
-    // (단, e.cT, e.cB는 기존 코드에서 "환불 후 금액"으로 쓰이고 있었으나, 이번 개편(applyRfFinal)에서 "원수강료"를 보존하는 용도로 분리됨)
-    // 따라서 e.cT를 바로 가져오면 됨
-    const initT = (e.cT !== null && e.cT !== undefined) ? e.cT : base.t;
-    const initB = (e.cB !== null && e.cB !== undefined) ? e.cB : base.b;
-    $('r_ot').value = fmt(initT); $('r_ob').value = fmt(initB); $('r_mh').value = base.mh || '4,4,4'; $('r_ah').value = 0; $('r_type').value = 'DISEASE'; $('r_bk').checked = false;
-    const sessCount = (base.mh || '4,4,4').split(',').length;
-    $('r_sess_idx').innerHTML = Array.from({length: sessCount}, (_, i) => `<option value="${i}">${i+1}차수 환불적용</option>`).join('');
+    $('r_ot').value = fmt(base.t); $('r_ob').value = fmt(base.b); $('r_mh').value = base.mh || '8,8,8'; $('r_ah').value = 0; $('r_type').value = 'DISEASE'; $('r_bk').checked = false;
     updateR_QH(); renderRfList(); updateLivePreview(); mdlR.show();
 };
 
@@ -868,78 +789,25 @@ function updateLivePreview() {
     $('live_rt').textContent = fmt(rt);
     $('live_rb').textContent = fmt(rb);
 }
-['r_sess_idx', 'r_ah', 'r_type', 'r_bk', 'r_ot', 'r_ob'].forEach(id => {
-    if ($(id)) {
-        $(id).addEventListener('input', updateLivePreview);
-        $(id).addEventListener('change', updateLivePreview);
-    }
+['r_ah', 'r_type', 'r_bk', 'r_ot', 'r_ob'].forEach(id => {
+    $(id).addEventListener('input', updateLivePreview);
+    $(id).addEventListener('change', updateLivePreview);
 });
 
 function calculateCurrentRf() {
-    const mhArr = ($('r_mh').value || '8').split(',').map(x => num(x)).filter(x => x > 0);
-    if (mhArr.length === 0) mhArr.push(8);
-
-    const e = E[curEditIdx];
-    const q = e.q;
-    const sessIdx = num($('r_sess_idx').value);
-    const sessHours = mhArr[sessIdx] || 8;
-    const ah = num($('r_ah').value) || 0;
-    const ot = num(val('r_ot'));
-    const ob = num(val('r_ob'));
-    const ty = val('r_type');
-
-    // 차수 기준 원금 산출 (총수강료 * (해당 차수 시수 / 총 시수))
-    const totalHours = mhArr.reduce((a,b)=>a+b, 0);
-    const getSAmt = (tAmt) => {
-        if (sessIdx === mhArr.length - 1) {
-            let pSum = 0;
-            for(let j=0; j<sessIdx; j++) pSum += Math.round(tAmt * (mhArr[j] / totalHours) / 10) * 10;
-            return tAmt - pSum;
-        } else {
-            return Math.round(tAmt * (mhArr[sessIdx] / totalHours) / 10) * 10;
-        }
-    };
-
-    const sessBaseAmt = getSAmt(ot);
-
-    let rt = 0;
-    let rb = $('r_bk').checked ? ob : 0; // 교재비는 분기 1회 청구이므로 선택 시 전액 반환 유지
-
-    const courseData = C[e.course]?.[q] || {};
-    const unitSessFee = Math.ceil(((courseData.inst_m || 0) + (courseData.mgmt_m || 0)) / ((courseData.unit || 1) * 4) / 10) * 10;
-
-    if (ty === 'BEFORE') {
-        rt = sessBaseAmt; // 해당 차수 전액 반환
-    } else if (ty === 'DISEASE') {
-        // ❗ 요청3, 6 반영: 결석 환불은 1단위 기준 수강료(올림처리됨) * 결석입력단위
-        rt = unitSessFee * ah;
-    } else if (ty === 'STUDENT') {
-        // 학습자 포기 시: 현재 진행 차수(sessIdx)의 비율에 따른 환불액
-        const ratio = ah / sessHours;
-        if (ratio <= 1/3) {
-            rt = sessBaseAmt * (2/3);
-        } else if (ratio <= 1/2) {
-            rt = sessBaseAmt * (1/2);
-        } else {
-            rt = 0; // 1/2 경과 시 반환하지 않음
-        }
-
-        // ❗ 요청1 반영: 현재 차수 이후에 남은 모든 차수(sessIdx + 1 부터 끝까지)의 원금 전액을 더해서 1차에 함께 환불
-        for (let j = sessIdx + 1; j < mhArr.length; j++) {
-            // getSAmt는 j번째 차수 원금을 구하는 함수 (내부 변수 scope 조정을 위해 분리)
-            let futureSessAmt = 0;
-            if (j === mhArr.length - 1) {
-                let pSum = 0;
-                for(let k=0; k<j; k++) pSum += Math.round(ot * (mhArr[k] / totalHours) / 10) * 10;
-                futureSessAmt = ot - pSum;
-            } else {
-                futureSessAmt = Math.round(ot * (mhArr[j] / totalHours) / 10) * 10;
-            }
-            rt += futureSessAmt;
+    const mhArr = ($('r_mh').value || '8').split(',').map(x => num(x)).filter(x => x > 0); if (mhArr.length === 0) mhArr.push(8);
+    const qh = mhArr.reduce((sum, v) => sum + v, 0); let ah = num($('r_ah').value) || 0;
+    const ot = num(val('r_ot')), ob = num(val('r_ob')), ty = val('r_type'); let rt = 0, rb = $('r_bk').checked ? ob : 0;
+    if (ty === 'BEFORE') { rt = ot; } else if (ty === 'DISEASE') { rt = (ot / qh) * ah; } else if (ty === 'STUDENT') {
+        const totalMonths = mhArr.length; const monthlyT = ot / totalMonths; let currentMonthIdx = 0, remainingAh = ah;
+        for (let i = 0; i < totalMonths; i++) { if (remainingAh >= mhArr[i]) { remainingAh -= mhArr[i]; currentMonthIdx++; } else { break; } }
+        if (currentMonthIdx < totalMonths) {
+            const currentMonthTotalHours = mhArr[currentMonthIdx];
+            if (remainingAh > 0) { const ratio = remainingAh / currentMonthTotalHours; if (ratio <= 1/3) rt += monthlyT * (2/3); else if (ratio <= 1/2) rt += monthlyT * (1/2); } else { rt += monthlyT; }
+            for (let i = currentMonthIdx + 1; i < totalMonths; i++) { rt += monthlyT; }
         }
     }
-
-    return { rt: Math.ceil(rt / 10) * 10, rb }; // ❗ 요청6 반영: 환불액 10원 단위 올림 처리
+    return { rt: Math.round(rt / 10) * 10, rb };
 }
 
 window.addRfToTemp = function() {
@@ -948,14 +816,24 @@ window.addRfToTemp = function() {
     const curTotT = tempRfs.reduce((sum, r) => sum + r.rt, 0); const curTotB = tempRfs.reduce((sum, r) => sum + r.rb, 0);
     if (curTotT + rt > ot || curTotB + rb > ob) { alert('❌ 초과 환불 오류!\n추가하려는 금액이 분기 기준 금액을 초과합니다.'); return; }
     
-    const sessIdx = num(val('r_sess_idx'));
-    const tyNmBase = {'BEFORE':'개시전', 'DISEASE':'일할', 'STUDENT':'포기'}[ty] || '';
+    // 💡 환불 시수 기반 역산 로직
+    const mhArr = ($('r_mh').value || '8').split(',').map(x => num(x)).filter(x => x > 0);
+    let progStr = '';
+    if (ty === 'STUDENT' || ty === 'DISEASE') {
+        let remain = ah, sIdx = 0;
+        for (let i = 0; i < mhArr.length; i++) {
+            if (remain >= mhArr[i] && i < mhArr.length - 1) {
+                if (remain === mhArr[i]) { remain = 0; sIdx = i + 1; break; }
+                remain -= mhArr[i]; sIdx++;
+            } else { break; }
+        }
+        progStr = `${sIdx + 1}차 ${remain}H`;
+    }
     
-    // ❗ 요청4 반영: 직관적인 환불 금액 메모 포맷 [환불:일할(1차)] 13,500
-    // 개시전은 차수입력이 없었으나 통일감을 위해 적용
-    const memoStr = `[환불:${tyNmBase}(${sessIdx + 1})] ${fmt(Math.round(rt / 10) * 10)}`;
+    const tyNmBase = {'BEFORE':'개시전', 'DISEASE':'결석', 'STUDENT':'포기'}[ty] || '';
+    const memoStr = ty === 'BEFORE' ? `[${tyNmBase}]` : `[${tyNmBase}] ${progStr}`;
     
-    tempRfs.push({ ty, tyNm: memoStr, ah, rt, rb, sessIdx });
+    tempRfs.push({ ty, tyNm: memoStr, ah, rt, rb });
     $('r_ah').value = 0; $('r_bk').checked = false; 
     renderRfList(); updateLivePreview();
 };
@@ -974,88 +852,16 @@ function renderRfList() {
 window.applyRfFinal = function() {
     const e = E[curEditIdx]; const base = C[e.course]?.[e.q] || {t:0, b:0};
     e.refunds = tempRfs; e.rT = tempRfs.reduce((sum, r) => sum + r.rt, 0); e.rB = tempRfs.reduce((sum, r) => sum + r.rb, 0);
+    e.cT = base.t - e.rT; e.cB = base.b - e.rB;
     if (e.refunds.length > 0) { 
-        e.mm = e.refunds.map(r => r.tyNm).join(', ');
-        // 환불 시에도 3스텝에서 사용자가 개별 수정한 원수강료(e.cT)를 보존하기 위해 덮어쓰지 않음.
-        // 다만 아직 수정한 적이 없어 null 상태라면, 요금표 원금(base.t)을 초기값으로 명시적 할당해 줌.
-        if (e.cT === null) e.cT = base.t;
-        if (e.cB === null) e.cB = base.b;
-    } else {
-        e.mm = ''; e.cT = null; e.cB = null;
-    }
+        e.mm = e.refunds.map(r => r.tyNm).join(', '); // 역산된 메모 문자열 적용
+    } else { e.mm = ''; e.cT = null; e.cB = null; }
     save(); renderE(); mdlR.hide();
 };
 
 // =====================================================
 // STEP 4 : 정산 및 조회 로직
 // =====================================================
-
-window.toggleSessCheck = function(targetQ, sessIdx, isChecked) {
-    const key = `${targetQ}_${sessIdx}`;
-    if (!isChecked) {
-        if (confirm(`해당 분기 ${sessIdx+1}차 마감을 해제하시겠습니까?`)) {
-            delete SysSet.closedSess[key];
-            save(); alert('마감이 해제되었습니다.'); renderSetTabs();
-        } else {
-            $('chkClose_'+sessIdx).checked = true; // 되돌리기
-        }
-    } else {
-        if (confirm(`해당 분기 ${sessIdx+1}차수를 마감하시겠습니까?\n현재 시점의 지원금 차감 내역 및 청구액이 영구 고정됩니다.`)) {
-            const snapshot = {};
-            const ls = Hs.filter(h => h.q === targetQ);
-            ls.forEach(h => {
-                const mhArr = (C[h.c]?.[targetQ]?.mh || '4,4,4').split(',').map(x => num(x)).filter(x => x > 0);
-                if (sessIdx >= mhArr.length) return;
-
-                const totalHours = mhArr.reduce((a,b)=>a+b, 0);
-                const getSAmt = (tAmt) => {
-                    if (tAmt <= 0) return 0;
-                    if (sessIdx === mhArr.length - 1) {
-                        let pSum = 0;
-                        for(let j=0; j<sessIdx; j++) pSum += Math.round(tAmt * (mhArr[j] / totalHours) / 10) * 10;
-                        return tAmt - pSum;
-                    } else {
-                        return Math.round(tAmt * (mhArr[sessIdx] / totalHours) / 10) * 10;
-                    }
-                };
-
-                let grossSessAmt = getSAmt(h.tO);
-                if (grossSessAmt <= 0) return;
-
-                let sRef = 0;
-                if (h.e.refunds && h.e.refunds.length > 0) {
-                    sRef = h.e.refunds.filter(r => r.sessIdx === sessIdx).reduce((sum, r) => sum + r.rt, 0);
-                }
-
-                let actualSessAmt = Math.max(0, grossSessAmt - sRef);
-
-                let selfA = getSAmt(h.sT);
-                let cho3A = getSAmt(h.tc);
-                let freeA = getSAmt(h.tf);
-
-                let cTot = selfA + cho3A + freeA;
-                if (cTot > actualSessAmt) {
-                    let toDed = cTot - actualSessAmt;
-                    if (toDed > 0 && selfA > 0) { const d = Math.min(toDed, selfA); selfA -= d; toDed -= d; }
-                    if (toDed > 0 && cho3A > 0) { const d = Math.min(toDed, cho3A); cho3A -= d; toDed -= d; }
-                    if (toDed > 0 && freeA > 0) { const d = Math.min(toDed, freeA); freeA -= d; toDed -= d; }
-                } else if (cTot < actualSessAmt) {
-                    let toAdd = actualSessAmt - cTot;
-                    if (h.sT > 0 || (h.tc === 0 && h.tf === 0)) { selfA += toAdd; }
-                    else if (h.tc > 0) { cho3A += toAdd; }
-                    else { freeA += toAdd; }
-                }
-
-                snapshot[h.id] = { selfAmt: selfA, cho3Amt: cho3A, freeAmt: freeA };
-            });
-            SysSet.closedSess[key] = snapshot;
-            save(); alert('성공적으로 마감되었습니다.'); renderSetTabs();
-        } else {
-            $('chkClose_'+sessIdx).checked = false; // 되돌리기
-        }
-    }
-};
-
 window.autoRunSet = function(silent = false) {
     if (!E.length) return;
     Ld = {}; Hs = [];
@@ -1120,33 +926,7 @@ function renderS4CourseFilter() {
 }
 
 window.renderSetTabs = function() {
-    const q = val('s4_q');
-
-    // 차수 마감 체크박스 렌더링
-    const chkWrap = $('closeSessChecks');
-    if (q === 'ALL') {
-        chkWrap.style.setProperty('display', 'none', 'important');
-    } else {
-        chkWrap.style.setProperty('display', 'flex', 'important');
-        let chks = `<span class="small fw-bold text-dark"><i class="bi bi-lock-fill"></i> 마감:</span>`;
-        // 강좌 중 최대 차수 구하기
-        let maxSess = 1;
-        Object.keys(C).forEach(c => {
-            const m = (C[c]?.[q]?.mh || '4,4,4').split(',').filter(x => num(x) > 0).length;
-            if (m > maxSess) maxSess = m;
-        });
-        for (let i = 0; i < maxSess; i++) {
-            const key = `${q}_${i}`;
-            const isChecked = SysSet.closedSess[key] ? 'checked' : '';
-            chks += `
-                <div class="form-check form-check-inline mb-0">
-                    <input class="form-check-input border-warning" type="checkbox" id="chkClose_${i}" ${isChecked} onchange="toggleSessCheck(${q}, ${i}, this.checked)">
-                    <label class="form-check-label small fw-bold text-dark" for="chkClose_${i}">${i+1}차</label>
-                </div>`;
-        }
-        chkWrap.innerHTML = chks;
-    }
- const hList = Hs.filter(h => (q==='ALL' || String(h.q)===q) && (s4_filt==='A' || (s4_filt==='F'&&h.isF) || (s4_filt==='C'&&h.isC)));
+    const q = val('s4_q'); const hList = Hs.filter(h => (q==='ALL' || String(h.q)===q) && (s4_filt==='A' || (s4_filt==='F'&&h.isF) || (s4_filt==='C'&&h.isC)));
     
     const st = {}, g = {cnt:0,tO:0,bO:0,cc:0,tc:0,bc:0,fc:0,tf:0,bf:0,st:0,sb:0};
     hList.forEach(h => {
@@ -1196,7 +976,10 @@ window.renderSetTabs = function() {
     cList.forEach(h => { crsH += `<tr><td>${h.q}분기</td><td>${h.dp}</td><td class="fw-bold"><span class="clickable" onclick="openStuModal('${h.id}')">${h.nm}</span></td><td class="text-primary fw-bold">${h.c}</td><td>${fmt(h.tO)}</td><td>${fmt(h.bO)}</td><td class="text-primary">${fmt(h.tc)}</td><td class="text-primary">${fmt(h.bc)}</td><td class="text-success">${fmt(h.tf)}</td><td class="text-success">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.sTo)}</td></tr>`; });
     $('tbCrseDtl').innerHTML = crsH;
 
-
+    setTimeout(() => {
+        const thead = $('tbCrseDtl').previousElementSibling; const thHeight = thead ? thead.offsetHeight - 1 : 65;
+        document.querySelectorAll('#tbCrseDtl .sticky-total-row td').forEach(td => { td.style.position = 'sticky'; td.style.top = thHeight + 'px'; td.style.zIndex = '9'; td.style.backgroundColor = '#fff3cd'; td.style.boxShadow = 'inset 0 -2px 0 #ccc'; });
+    }, 0);
 };
 
 window.openStuModal = function(id) {
@@ -1240,9 +1023,29 @@ function getEduData() {
 
     Object.keys(grouped).forEach(baseC => {
         const sub = grouped[baseC];
+        let maxSessions = 1;
         sub.forEach(h => {
-            if(h.sT > 0) result.push({ sheetName: baseC + ' 수강료', g: h.g, b: h.ban, n: h.num, nm: h.nm, amt: h.sT });
+            const mhArr = (C[h.c]?.[q]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
+            if(mhArr.length > maxSessions) maxSessions = mhArr.length;
         });
+
+        for(let i=0; i<maxSessions; i++) {
+            sub.forEach(h => {
+                if(h.sT <= 0) return;
+                const mhArr = (C[h.c]?.[q]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
+                const totalHours = mhArr.reduce((a,b)=>a+b, 0);
+                if(i < mhArr.length) {
+                    let amt = 0;
+                    if(i === mhArr.length - 1) {
+                        let prevSum = 0; for(let j=0; j<i; j++) prevSum += Math.round(h.sT * (mhArr[j] / totalHours) / 10) * 10;
+                        amt = h.sT - prevSum;
+                    } else {
+                        amt = Math.round(h.sT * (mhArr[i] / totalHours) / 10) * 10;
+                    }
+                    if(amt > 0) result.push({ sheetName: baseC + ` ${i+1}차 수강료`, g: h.g, b: h.ban, n: h.num, nm: h.nm, amt: amt });
+                }
+            });
+        }
         sub.filter(h => h.sB > 0).forEach(h => {
             result.push({ sheetName: baseC + ' 재료비', g: h.g, b: h.ban, n: h.num, nm: h.nm, amt: h.sB });
         });
@@ -1255,8 +1058,6 @@ window.renderPreviewEdu = function() {
     let h = '';
     if(!data.length) h = `<tr><td colspan="4" class="text-muted py-3">해당 분기에 수납(자부담) 대상자가 없습니다.</td></tr>`;
     else {
-        const totalAmt = data.reduce((sum, r) => sum + r.amt, 0);
-        h += `<tr class="sticky-total-row fw-bold"><td colspan="3" class="text-end pe-3">총 합계</td><td class="text-danger">${fmt(totalAmt)}</td></tr>`;
         data.forEach(r => {
             h += `<tr><td class="text-success fw-bold">${r.sheetName}</td><td>${dsp(r.g, r.b, r.n)}</td><td>${r.nm}</td><td>${fmt(r.amt)}</td></tr>`;
         });
@@ -1277,60 +1078,22 @@ window.exEdu = function() {
     });
     
     Object.keys(sheetGroups).forEach(sheetName => {
-        const total = sheetGroups[sheetName].reduce((sum, r) => sum + r['* 대상금액'], 0);
-        sheetGroups[sheetName].push({ '* 학과': '총계', '* 학년': '', '* 반': '', '* 번호': '', '* 성명': '', '* 대상금액': total });
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetGroups[sheetName]), sheetName.substring(0, 31));
     });
     XLSX.writeFile(wb, `${q}분기_에듀파인_수납요구서.xlsx`);
 };
 
 // ② 교육비 청구서 데이터 생성 및 렌더링 (3단계 분리 및 강사료 기준 연산 적용)
-function getInvoiceData(forceSessIdx = null) {
+function getInvoiceData() {
     const q = num(val('p_qInvoice'));
-    const sessVal = val('p_sInvoice');
-
-    // 전체 차수 합산(ALL) 처리 로직: 각 차수별로 재귀호출하여 합산
-    if (sessVal === 'ALL' && forceSessIdx === null) {
-        let maxSess = 1;
-        Object.keys(C).forEach(c => {
-            const m = (C[c]?.[q]?.mh || '4,4,4').split(',').filter(x => num(x) > 0).length;
-            if (m > maxSess) maxSess = m;
-        });
-
-        let mergedGroup = {};
-        for(let i=0; i<maxSess; i++) {
-            const sessData = getInvoiceData(i);
-            sessData.forEach(g => {
-                if(!mergedGroup[g.c]) {
-                    mergedGroup[g.c] = JSON.parse(JSON.stringify(g));
-                } else {
-                    const t = mergedGroup[g.c];
-                    t.baseT += g.baseT; t.baseInst += g.baseInst; t.baseMgmt += g.baseMgmt;
-                    t.selfFee += g.selfFee; t.selfInst += g.selfInst; t.selfMgmt += g.selfMgmt;
-                    t.cho3Fee += g.cho3Fee; t.cho3Inst += g.cho3Inst; t.cho3Mgmt += g.cho3Mgmt;
-                    t.freeFee += g.freeFee; t.freeInst += g.freeInst; t.freeMgmt += g.freeMgmt;
-                    t.totFee += g.totFee; t.totInst += g.totInst; t.totMgmt += g.totMgmt;
-                    t.memos = [...new Set([...t.memos, ...g.memos])];
-                    // 인원수는 최대치 유지 (합산 시 뻥튀기 방지)
-                    t.selfCnt = Math.max(t.selfCnt, g.selfCnt);
-                    t.cho3Cnt = Math.max(t.cho3Cnt, g.cho3Cnt);
-                    t.freeCnt = Math.max(t.freeCnt, g.freeCnt);
-                    t.totCnt = Math.max(t.totCnt, g.totCnt);
-                }
-            });
-        }
-        return Object.values(mergedGroup).sort((a,b) => a.c.localeCompare(b.c));
-    }
-
-    const sIdx = forceSessIdx !== null ? forceSessIdx : num(sessVal) - 1;
+    const targetSess = num(val('p_sInvoice'));
+    const sIdx = targetSess - 1;
     const ls = Hs.filter(h => h.q === q);
 
-    const getBaseName = (c) => c.replace(/\s*\([A-Za-z가-힣0-9]+\)$/, '').trim();
     const grouped = {};
     ls.forEach(h => {
-        const mhArr = (C[h.c]?.[q]?.mh || '4,4,4').split(',').map(x => num(x)).filter(x => x > 0);
+        const mhArr = (C[h.c]?.[q]?.mh || '8,8,8').split(',').map(x => num(x)).filter(x => x > 0);
         if (sIdx >= mhArr.length) return; 
-        const baseC = getBaseName(h.c);
 
         const totalHours = mhArr.reduce((a,b)=>a+b, 0);
         const getSessAmt = (totalAmt) => {
@@ -1344,42 +1107,20 @@ function getInvoiceData(forceSessIdx = null) {
             }
         };
 
-        let sess_tO = getSessAmt(h.tO);
+        const sess_tO = getSessAmt(h.tO);
         if (sess_tO <= 0) return;
 
-        // 💡 연산 모듈 재활용 및 정액 수용비 차수 비율 적용
-        // 💡 마감된 차수의 스냅샷 데이터 조회
-        let closedSnapshot = null;
-        if (SysSet.closedSess && SysSet.closedSess[`${q}_${sIdx}`]) {
-            closedSnapshot = SysSet.closedSess[`${q}_${sIdx}`][h.id];
-        }
-
-        // 환불 로직: 해당 차수에 지정된 환불 금액 조회
-        let sessRefund = 0;
-        if (h.e.refunds && h.e.refunds.length > 0) {
-            sessRefund = h.e.refunds.filter(r => r.sessIdx === sIdx).reduce((sum, r) => sum + r.rt, 0);
-        }
-
-        const calc = (amt, isBase = false) => {
+        // 💡 연산 모듈 재활용 (강사료 5% 로직 연동)
+        const calc = (amt) => {
             if (amt <= 0) return { t:0, i:0, m:0 };
-
-            // ❗ 개편: 전역 수용비(SysSet)를 완전히 버리고, 개별 강좌에 입력된 수용비(mgmt_m)를 차수 단위 고정 수용비로 취급
-            const courseData = C[h.c]?.[q] || { inst_m: 0, mgmt_m: 0, unit: 1 };
-            // 차수 단위 수용비 = (수용비월기준 / 전체시수(주간단위*4)) * 이 차수의 시수(mhArr[sIdx])
-            const unitSess = (courseData.unit || 1) * 4;
-            const baseMgmt = Math.ceil(((courseData.mgmt_m || 0) / unitSess) / 10) * 10 * mhArr[sIdx];
-
-            if (isBase) return { t: amt, i: amt - baseMgmt, m: baseMgmt };
-
-            const ratio = amt / sess_tO;
-            const actualMgmt = Math.round(baseMgmt * ratio / 10) * 10;
-            return { t: amt, i: amt - actualMgmt, m: actualMgmt };
+            const split = getSplitAmts(amt);
+            return { t: amt, i: split.inst, m: split.mgmt };
         };
 
-        if (!grouped[baseC]) {
-            const baseCalc = calc(sess_tO, true);
-            grouped[baseC] = {
-                c: baseC, baseT: baseCalc.t, baseInst: baseCalc.i, baseMgmt: baseCalc.m,
+        if (!grouped[h.c]) {
+            const baseCalc = calc(sess_tO);
+            grouped[h.c] = {
+                c: h.c, baseT: baseCalc.t, baseInst: baseCalc.i, baseMgmt: baseCalc.m,
                 selfCnt: 0, selfFee: 0, selfInst: 0, selfMgmt: 0,
                 cho3Cnt: 0, cho3Fee: 0, cho3Inst: 0, cho3Mgmt: 0,
                 freeCnt: 0, freeFee: 0, freeInst: 0, freeMgmt: 0,
@@ -1388,42 +1129,10 @@ function getInvoiceData(forceSessIdx = null) {
             };
         }
         
-        const g = grouped[baseC];
-        let selfAmt = 0, cho3Amt = 0, freeAmt = 0;
-
-        if (closedSnapshot) {
-            // 마감된 스냅샷이 존재하면, 이미 계산된 차수별 금액을 그대로 사용
-            selfAmt = closedSnapshot.selfAmt || 0;
-            cho3Amt = closedSnapshot.cho3Amt || 0;
-            freeAmt = closedSnapshot.freeAmt || 0;
-        } else {
-            let grossSessAmt = sess_tO;
-            let actualSessAmt = Math.max(0, grossSessAmt - sessRefund);
-
-            selfAmt = getSessAmt(h.sT);
-            cho3Amt = getSessAmt(h.tc);
-            freeAmt = getSessAmt(h.tf);
-
-            let currentTot = selfAmt + cho3Amt + freeAmt;
-
-            if (currentTot > actualSessAmt) {
-                let toDeduct = currentTot - actualSessAmt;
-                if (toDeduct > 0 && selfAmt > 0) { const d = Math.min(toDeduct, selfAmt); selfAmt -= d; toDeduct -= d; }
-                if (toDeduct > 0 && cho3Amt > 0) { const d = Math.min(toDeduct, cho3Amt); cho3Amt -= d; toDeduct -= d; }
-                if (toDeduct > 0 && freeAmt > 0) { const d = Math.min(toDeduct, freeAmt); freeAmt -= d; toDeduct -= d; }
-            } else if (currentTot < actualSessAmt) {
-                // 특정 차수 환불이 다른 차수에 적용되어 이 차수에는 배분액이 모자란 경우
-                let toAdd = actualSessAmt - currentTot;
-                // 기존 결제 비율이나, 단순화를 위해 자부담에 우선 부과
-                if (h.sT > 0 || (h.tc === 0 && h.tf === 0)) { selfAmt += toAdd; }
-                else if (h.tc > 0) { cho3Amt += toAdd; }
-                else { freeAmt += toAdd; }
-            }
-        }
-
-        const sSelf = calc(selfAmt);
-        const sCho3 = calc(cho3Amt);
-        const sFree = calc(freeAmt);
+        const g = grouped[h.c];
+        const sSelf = calc(getSessAmt(h.sT));
+        const sCho3 = calc(getSessAmt(h.tc));
+        const sFree = calc(getSessAmt(h.tf));
 
         if (sSelf.t > 0) { g.selfCnt++; g.selfFee += sSelf.t; g.selfInst += sSelf.i; g.selfMgmt += sSelf.m; }
         if (sCho3.t > 0) { g.cho3Cnt++; g.cho3Fee += sCho3.t; g.cho3Inst += sCho3.i; g.cho3Mgmt += sCho3.m; }
@@ -1447,15 +1156,6 @@ window.renderPreviewInvoice = function() {
     let h = '';
     if(!data.length) h = `<tr><td colspan="22" class="text-muted py-3">해당 분기/차수에 청구할 데이터가 없습니다.</td></tr>`;
     else {
-        let totSelf=0, totCho3=0, totFree=0, totAll=0;
-        data.forEach(g => { totSelf+=g.selfFee; totCho3+=g.cho3Fee; totFree+=g.freeFee; totAll+=g.totFee; });
-        h += `<tr class="sticky-total-row fw-bold text-center">
-            <td colspan="6" class="text-end pe-3">총 합계</td>
-            <td class="text-warning">${fmt(totSelf)}</td><td colspan="3"></td>
-            <td class="text-primary">${fmt(totCho3)}</td><td colspan="3"></td>
-            <td class="text-success">${fmt(totFree)}</td><td colspan="3"></td>
-            <td class="text-danger fs-6">${fmt(totAll)}</td><td colspan="4"></td>
-        </tr>`;
         data.forEach((g, idx) => {
             const uniqueMemos = [...new Set(g.memos)]; 
             h += `<tr>
@@ -1482,42 +1182,38 @@ window.exInvoice = function() {
 
     const wb = XLSX.utils.book_new();
     const aoa = [
-        [`인천갈월초등학교 방과후학교 ${q}분기 ${val('p_sInvoice') === 'ALL' ? '전체' : targetSess + '차'} 교육비 청구서`], [],
+        [`인천갈월초등학교 방과후학교 ${q}분기 ${targetSess}차 교육비 청구서`], [],
         [`1. 교육기간 : (직접 입력)`], [`2. 입금계좌 : (직접 입력)`],
         [`3. 청구내용 : 위와 같이 교육을 실시함에 따라 다음과 같이 대금을 청구합니다.`], [],
         [ '순번', '부서명', '1인당 수강료', '1인당 강사료', '1인당 수용비',
           '수익자 부담 인원', '수익자 수강료', '수익자 강사료', '수익자 수용비',
           '초3 지원금 인원', '초3 수강료', '초3 강사료', '초3 수용비',
           '자유수강 지원 인원', '자유 수강료', '자유 강사료', '자유 수용비',
-          '합계 인원', '합계 수강료', '합계 강사료', '합계 수용비', '차액(환불등)', '비고' ]
+          '합계 인원', '합계 수강료', '합계 강사료', '합계 수용비', '비고' ]
     ];
 
     let idx = 1;
     data.forEach(g => {
         const uniqueMemos = [...new Set(g.memos)]; 
-        const diffFee = g.totFee - (g.baseT * g.totCnt);
         aoa.push([
             idx++, g.c, g.baseT, g.baseInst, g.baseMgmt,
             g.selfCnt, g.selfFee, g.selfInst, g.selfMgmt,
             g.cho3Cnt, g.cho3Fee, g.cho3Inst, g.cho3Mgmt,
             g.freeCnt, g.freeFee, g.freeInst, g.freeMgmt,
             g.totCnt, g.totFee, g.totInst, g.totMgmt,
-            diffFee, uniqueMemos.join(', ')
+            uniqueMemos.join(', ')
         ]);
     });
 
-    let exTotSelf=0, exTotCho3=0, exTotFree=0, exTotAll=0;
-    data.forEach(g => { exTotSelf+=g.selfFee; exTotCho3+=g.cho3Fee; exTotFree+=g.freeFee; exTotAll+=g.totFee; });
-    aoa.push(['총계', '', '', '', '', '', exTotSelf, '', '', '', exTotCho3, '', '', '', exTotFree, '', '', '', exTotAll, '', '', '', '']);
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!merges'] = [
-        { s: {r:0, c:0}, e: {r:0, c:22} },
-        { s: {r:2, c:0}, e: {r:2, c:3} }, { s: {r:2, c:4}, e: {r:2, c:22} },
-        { s: {r:3, c:0}, e: {r:3, c:3} }, { s: {r:3, c:4}, e: {r:3, c:22} },
-        { s: {r:4, c:0}, e: {r:4, c:22} }
+        { s: {r:0, c:0}, e: {r:0, c:21} },
+        { s: {r:2, c:0}, e: {r:2, c:3} }, { s: {r:2, c:4}, e: {r:2, c:21} },
+        { s: {r:3, c:0}, e: {r:3, c:3} }, { s: {r:3, c:4}, e: {r:3, c:21} },
+        { s: {r:4, c:0}, e: {r:4, c:21} }
     ];
     XLSX.utils.book_append_sheet(wb, ws, `${targetSess}차 청구서`);
-    XLSX.writeFile(wb, `${q}분기_${val('p_sInvoice') === 'ALL' ? '전체합산' : targetSess + '차'}_교육비청구서.xlsx`);
+    XLSX.writeFile(wb, `${q}분기_${targetSess}차_교육비청구서(업체용).xlsx`);
 };
 
 // ③ 환불 결의 내역서
@@ -1574,9 +1270,6 @@ window.renderPreviewRoster = function() {
     let h = '';
     if(!data.length) h = `<tr><td colspan="7" class="text-muted py-3">해당 조건에 맞는 명단이 없습니다.</td></tr>`;
     else {
-        let totT=0, totB=0, totAll=0;
-        data.forEach(r => { totT+=r.t; totB+=r.b; totAll+=r.tot; });
-        h += `<tr class="sticky-total-row fw-bold text-center"><td colspan="4" class="text-end pe-3">총 합계</td><td>${fmt(totT)}</td><td>${fmt(totB)}</td><td class="text-danger fs-6">${fmt(totAll)}</td></tr>`;
         data.forEach((r, i) => {
             h += `<tr><td>${i+1}</td><td>${dsp(r.g, r.ban, r.n)}</td><td>${r.nm}</td><td class="fw-bold">${r.c}</td><td>${fmt(r.t)}</td><td>${fmt(r.b)}</td><td class="fw-bold text-primary">${fmt(r.tot)}</td></tr>`;
         });
@@ -1590,10 +1283,6 @@ window.exRoster = function() {
     if (!data.length) { alert('해당 조건에 맞는 명단이 없습니다.'); return; }
     const wb = XLSX.utils.book_new();
     const sheetData = data.map((x, i) => ({ '연번': i + 1, '학년': x.g, '반': x.ban, '번호': x.n, '이름': x.nm, '과목': x.c, '수강료': x.t, '교재비': x.b, '합계': x.tot }));
-    const sumT = sheetData.reduce((sum, x) => sum + x['수강료'], 0);
-    const sumB = sheetData.reduce((sum, x) => sum + x['교재비'], 0);
-    const sumTot = sheetData.reduce((sum, x) => sum + x['합계'], 0);
-    sheetData.push({ '연번': '총계', '학년': '', '반': '', '번호': '', '이름': '', '과목': '', '수강료': sumT, '교재비': sumB, '합계': sumTot });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), '정산명단');
     XLSX.writeFile(wb, `${q}분기_${tg}_정산명단.xlsx`);
 };
