@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>방과후 스마트 정산 시스템 v3.4.2 PRO</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+<body>
+
+<div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
+    <h4 class="fw-bold text-primary mb-0 d-flex align-items-center gap-3">
+        <span>방과후 스마트 정산 시스템 for bubuk</span>
+        <span class="badge bg-danger fs-6">v3.4.2 PRO</span>
+    </h4>
+    <div class="d-flex align-items-center gap-3">
+        <div id="storageUsage" class="small fw-bold text-muted mb-0 bg-light px-2 py-1 rounded border">💾 용량 확인 중...</div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-warning fw-bold" onclick="maskNames()">😎 이름 마스킹</button>
+            <button class="btn btn-sm btn-dark" onclick="sysBackup()">⬇️ 데이터 백업</button>
+            <label class="btn btn-sm btn-outline-dark mb-0">⬆️ 불러오기 <input type="file" id="restoreFile" accept=".json" class="d-none"></label>
+        </div>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-3" id="myTab">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#step1">1. 분기별 기준정보</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#step2">2. 자유수강권 관리</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#step3">3. 수강생 관리</button></li>
+    <li class="nav-item"><button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#step4" id="tabStep4Btn">4. 정산 및 조회 📊</button></li>
+    <li class="nav-item"><button class="nav-link fw-bold text-success" data-bs-toggle="tab" data-bs-target="#step5" id="tabStep5Btn" onclick="initStep5()">5. 문서 서식 자동생성</button></li>
+    <li class="nav-item"><button class="nav-link text-info fw-bold" data-bs-toggle="tab" data-bs-target="#step6">6. 사용 설명서</button></li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="step1">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card p-3 mb-3 border-dark shadow-sm">
+                    <h6 class="fw-bold text-dark mb-3">📥 엑셀 부서 일괄 등록</h6>
+                    <button class="btn btn-outline-dark btn-sm w-100 mb-2" onclick="dlSampleCourse()">양식 다운로드</button>
+                    <label class="btn btn-outline-secondary btn-sm w-100 mb-2 text-start">📁 파일 선택<input type="file" id="fileCourse" accept=".xlsx,.xls" class="d-none"></label>
+                    <div id="fileCourseNm" class="small text-muted mb-2 text-truncate">선택된 파일 없음</div>
+                    <button class="btn btn-dark btn-sm w-100 fw-bold" onclick="upCourse()">엑셀 업로드</button>
+                </div>
+                <div class="card p-3 border-primary shadow-sm">
+                    <h6 class="fw-bold text-primary mb-2">✍️ 부서 마스터 수동 등록</h6>
+                    <input type="text" id="c_dept" class="form-control form-control-sm mb-1" placeholder="부서명">
+                    <div class="input-group input-group-sm mb-2"><span class="input-group-text">강좌수</span><input type="number" id="c_cnt" class="form-control text-center" value="1" min="1"></div>
+                    <input type="text" id="c_inst_m" class="form-control form-control-sm fn-input mb-1" placeholder="월 강사료">
+                    <input type="text" id="c_mgmt_m" class="form-control form-control-sm fn-input mb-1" placeholder="월 수용비">
+                    <input type="text" id="c_b" class="form-control form-control-sm fn-input mb-1" placeholder="분기 기초 교재비">
+                    <div class="input-group input-group-sm mb-3"><span class="input-group-text">주간단위</span><input type="number" id="c_unit" class="form-control text-center" value="1" min="1"></div>
+                    <input type="text" id="c_mh" class="form-control form-control-sm mb-3" placeholder="기본 시수(예: 4,4,4)">
+                    <button class="btn btn-primary btn-sm w-100 fw-bold" onclick="addDeptMaster()">등록 (전체분기 복사)</button>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="d-flex w-100 mb-3 shadow-sm rounded overflow-hidden border border-primary">
+                    <button class="btn btn-qtab flex-fill active" id="btnQTab1" onclick="setQTab(1)">1분기 설정</button>
+                    <button class="btn btn-qtab flex-fill" id="btnQTab2" onclick="setQTab(2)">2분기 설정</button>
+                    <button class="btn btn-qtab flex-fill" id="btnQTab3" onclick="setQTab(3)">3분기 설정</button>
+                    <button class="btn btn-qtab flex-fill" id="btnQTab4" onclick="setQTab(4)">4분기 설정</button>
+                </div>
+                <div class="card p-3 mb-3 shadow-sm border-info">
+                    <h6 class="fw-bold mb-2 text-info" id="lblMasterTab">부서 마스터</h6>
+                    <div class="tbl-wrap" style="max-height:260px;"><table class="table table-sm table-bordered text-center align-middle" id="tbMaster"></table></div>
+                </div>
+                <div class="card p-3 h-100 shadow-sm border-secondary">
+                    <h6 class="fw-bold mb-2 text-secondary" id="lblCourseTab">강좌 요금표</h6>
+                    <div class="tbl-wrap" style="max-height:260px;"><table class="table table-sm table-bordered text-center align-middle" id="tbCourse"></table></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="step2">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card p-3 border-success shadow-sm">
+                    <h6 class="fw-bold text-success">📥 자유수강권 업로드</h6>
+                    <button class="btn btn-outline-success btn-sm w-100 mb-2" onclick="dlSampleFree()">양식 다운로드</button>
+                    <label class="btn btn-outline-secondary btn-sm w-100 mb-2 text-start">📁 파일 선택<input type="file" id="fileFree" accept=".xlsx,.xls" class="d-none"></label>
+                    <div id="fileFreNm" class="small text-muted mb-2">선택된 파일 없음</div>
+                    <button class="btn btn-success btn-sm w-100" onclick="upFree()">엑셀 업로드</button>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="card p-3 h-100 border-success shadow-sm">
+                    <h6 class="fw-bold text-success mb-2">🎖️ 지원 대상 명단 <span id="cnt_f" class="badge bg-success">0</span></h6>
+                    <div class="tbl-wrap" style="max-height:500px;"><table class="table table-sm table-bordered text-center" id="tbFree"></table></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="step3">
+        <div class="card p-3 border-secondary h-100 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0">👥 수강생 명단 관리 <span id="cnt_e" class="badge bg-primary">0</span></h6>
+                <div class="d-flex gap-3 align-items-center">
+                    <select id="exEnQ" class="form-select form-select-sm border-primary fw-bold text-primary w-auto"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select>
+                    <label class="btn btn-sm btn-outline-secondary mb-0">📁 엑셀업로드(다중) <input type="file" id="fileEnroll" accept=".xlsx,.xls" class="d-none" multiple></label>
+                    <div class="form-check form-switch mb-0"><input class="form-check-input border-warning" type="checkbox" id="chkOnlyAdjust" onchange="renderE()"><label class="form-check-label small fw-bold text-warning" for="chkOnlyAdjust">조정(할인)만</label></div>
+                    <div class="form-check form-switch mb-0"><input class="form-check-input border-danger" type="checkbox" id="chkOnlyRefund" onchange="renderE()"><label class="form-check-label small fw-bold text-danger" for="chkOnlyRefund">환불/결석만</label></div>
+                </div>
+            </div>
+            <div class="bg-light p-2 rounded mb-3 border"><div class="tbl-wrap" style="max-height:160px;"><table class="table table-sm table-bordered text-center align-middle mb-0 bg-white" id="tbMatrix"></table></div></div>
+            <div class="tbl-wrap" style="max-height:480px;"><table class="table table-sm table-bordered table-hover align-middle text-center" id="tbEnroll"></table></div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="step4">
+        <div class="card p-3 border-danger shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded border">
+                <div class="d-flex gap-3 align-items-center">
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-dark active" id="fBtnA" onclick="setFilt('A')">전체보기</button>
+                        <button class="btn btn-sm btn-outline-success" id="fBtnF" onclick="setFilt('F')">자유수강만</button>
+                        <button class="btn btn-sm btn-outline-primary" id="fBtnC" onclick="setFilt('C')">초3지원만</button>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fw-bold small text-muted">대상 분기:</span>
+                        <select id="s4_q" class="form-select form-select-sm d-inline-block w-auto fw-bold text-danger" onchange="window.gQ=num(this.value); renderSetTabs(); renderE();">
+                            <option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option>
+                        </select>
+                        <div id="closeSessChecks" class="d-flex gap-2 ms-2 bg-warning bg-opacity-10 p-1 px-2 rounded border border-warning" style="display:none !important;"></div>
+                    </div>
+                </div>
+                <button class="btn btn-success btn-sm fw-bold" onclick="exportStep4Excel()"><i class="bi bi-download"></i> 엑셀 내려받기</button>
+            </div>
+            <ul class="nav nav-tabs sub-nav mb-3">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#s4t1" onclick="curS4Tab='STAT'; renderSetTabs();">① 분기별 수강현황</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#s4t2" onclick="curS4Tab='STU'; renderSetTabs();">② 학생별 상세조회</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#s4t3" onclick="curS4Tab='CRSE'; renderSetTabs();">③ 강좌별 상세조회</button></li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="s4t1"><div class="tbl-wrap" style="max-height:500px;"><table class="table table-sm table-bordered text-center align-middle" style="font-size:0.8rem;"><thead id="tbStatHead"></thead><tbody id="tbStat"></tbody></table></div></div>
+                <div class="tab-pane fade" id="s4t2"><div class="tbl-wrap" style="max-height:500px;"><table class="table table-sm table-bordered text-center align-middle table-hover"><thead id="tbStuDtlHead"></thead><tbody id="tbStuDtl"></tbody></table></div></div>
+                <div class="tab-pane fade" id="s4t3"><div id="cFilterBtnGroup" class="d-flex flex-wrap gap-2 mb-2 bg-light p-2 rounded"></div><div class="tbl-wrap" style="max-height:500px;"><table class="table table-sm table-bordered text-center align-middle table-hover"><thead id="tbCrseDtlHead"></thead><tbody id="tbCrseDtl"></tbody></table></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="step5">
+        <div class="card p-3 border-success bg-light shadow-sm">
+            <h5 class="fw-bold mb-3"><i class="bi bi-printer"></i> 행정 및 증빙 서식 자동생성</h5>
+            <ul class="nav nav-tabs sub-nav mb-3">
+                <li class="nav-item"><button class="nav-link active text-success" data-bs-toggle="tab" data-bs-target="#s5t_edu">🏦 에듀파인 수납요구서</button></li>
+                <li class="nav-item"><button class="nav-link text-info" data-bs-toggle="tab" data-bs-target="#s5t_inv">📄 교육비 청구서 (업체용)</button></li>
+                <li class="nav-item"><button class="nav-link text-danger" data-bs-toggle="tab" data-bs-target="#s5t_ref">💸 환불/조정 이력서</button></li>
+                <li class="nav-item"><button class="nav-link text-primary" data-bs-toggle="tab" data-bs-target="#s5t_ros">📑 만능 정산 명단</button></li>
+            </ul>
+            <div class="tab-content bg-white border p-3 rounded shadow-sm">
+                <div class="tab-pane fade show active" id="s5t_edu">
+                    <div class="d-flex justify-content-between mb-2">
+                        <select id="p_q1" class="form-select form-select-sm w-auto" onchange="window.gQ=num(this.value); renderPreviewEdu();"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select>
+                        <button class="btn btn-success btn-sm fw-bold px-4" onclick="exEdu()">엑셀 업로드용 파일 추출</button>
+                    </div>
+                    <div id="eduSheetTabs" class="mb-2 d-flex flex-wrap p-2 bg-light border rounded"></div>
+                    <div class="tbl-wrap border rounded" style="max-height: 400px;"><table class="table table-sm table-hover text-center"><thead class="table-success"><tr><th>학적</th><th>이름</th><th>대상금액</th><th>비고</th></tr></thead><tbody id="prev_edu"></tbody></table></div>
+                </div>
+                <div class="tab-pane fade" id="s5t_inv">
+                    <div class="d-flex justify-content-between mb-3"><div class="d-flex gap-2"><select id="p_qInvoice" class="form-select form-select-sm w-auto" onchange="window.gQ=num(this.value); renderPreviewInvoice();"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select><select id="p_sInvoice" class="form-select form-select-sm w-auto border-info" onchange="renderPreviewInvoice()"><option value="ALL">전체 차수 합산</option><option value="1">1차</option><option value="2">2차</option><option value="3">3차</option><option value="4">4차</option></select></div><button class="btn btn-info btn-sm fw-bold text-white px-4" onclick="exInvoice()">청구서 다운로드</button></div>
+                    <div class="tbl-wrap border rounded" style="max-height: 500px;"><table class="table table-sm table-bordered text-center align-middle"><thead class="table-info" id="tbInvHead"></thead><tbody id="prev_inv"></tbody></table></div>
+                </div>
+                <div class="tab-pane fade" id="s5t_ref">
+                    <div class="d-flex justify-content-between mb-3"><span class="small text-muted">반환 결의 및 장부 대조 증빙용</span><button class="btn btn-danger btn-sm fw-bold px-4" onclick="exRef()">이력서 추출</button></div>
+                    <div class="tbl-wrap border rounded" style="max-height: 400px;"><table class="table table-sm table-hover text-center align-middle"><thead class="table-danger"><tr><th>분기</th><th>강좌명</th><th>학적</th><th>이름</th><th>수강료환불</th><th>교재비환불</th><th>적요 (수강료|교재비 분리)</th></tr></thead><tbody id="prev_ref"></tbody></table></div>
+                </div>
+                <div class="tab-pane fade" id="s5t_ros">
+                    <div class="d-flex justify-content-between mb-3"><div class="d-flex gap-2"><select id="p_q2" class="form-select form-select-sm w-auto" onchange="window.gQ=num(this.value); renderPreviewRoster();"><option value="1">1분기</option><option value="2">2분기</option><option value="3">3분기</option><option value="4">4분기</option></select><select id="p_tg" class="form-select form-select-sm w-auto border-primary" onchange="renderPreviewRoster()"><option value="SELF">수익자부담</option><option value="CHO3">초3지원</option><option value="FREE">자유수강</option><option value="ALL">전체발생액</option></select><select id="p_so" class="form-select form-select-sm w-auto" onchange="renderPreviewRoster()"><option value="C">강좌별</option><option value="S">학생별</option></select></div><button class="btn btn-primary btn-sm fw-bold px-4" onclick="exRoster()">명단 추출</button></div>
+                    <div class="tbl-wrap border rounded" style="max-height: 400px;"><table class="table table-sm table-hover text-center"><thead class="table-primary"><tr><th>연번</th><th>학적</th><th>이름</th><th>강좌명</th><th>수강료</th><th>교재비</th><th>합계</th></tr></thead><tbody id="prev_ros"></tbody></table></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="step6">
+        <div class="card p-4 border-info bg-light">
+            <h5 class="fw-bold text-info border-bottom pb-2 mb-4">방과후 스마트 정산 v3.4.2 PRO 매뉴얼</h5>
+            <div class="row lh-lg">
+                <div class="col-md-6 mb-4">
+                    <h6 class="fw-bold text-primary">1. 회계 기본값 설정 (1스텝)</h6>
+                    <p class="small text-secondary">월 단가와 분기 시수를 입력하면 B방식으로 <strong>기초 수강료</strong>가 자동 산출됩니다. 기초 금액은 모든 정산의 절대적 기준선이 됩니다.</p>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <h6 class="fw-bold text-success">2. 통합 회계 콘솔 (3스텝)</h6>
+                    <p class="small text-secondary">학생 이름을 클릭하면 콘솔이 열립니다. <strong>조정(할인)</strong>은 분기 총액 단위로, <strong>환불</strong>은 차수별 시수 단위로 입력하며 수강료와 교재비 메모가 주머니별로 자동 격리됩니다.</p>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <h6 class="fw-bold text-warning">3. 전역 강좌 팝업 (1, 3스텝)</h6>
+                    <p class="small text-secondary">초록색 <strong>강좌명</strong>을 누르면 4스텝으로 이동하지 않아도 즉시 정산 현황 모달이 뜹니다. 상단에 <strong>Sticky 합계행</strong>이 고정되어 대조가 편리합니다.</p>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <h6 class="fw-bold text-danger">4. 하이브리드 환불 및 차액 증빙 (5스텝)</h6>
+                    <p class="small text-secondary">마감 전이면 즉시 차감, 마감 후면 사후 반환 장부로 자동 분류됩니다. 청구서의 <strong>차액</strong> 컬럼은 기초수강료 대비 최종징수액의 차이를 역산하여 감사 추적성을 보장합니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="mdlStuConsole" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-dark text-white py-2"><h5 class="modal-title fw-bold" id="consoleTitle">학생 통합 회계 콘솔</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body p-0 d-flex flex-column" style="min-height: 520px;">
+                <div id="consoleTop" class="bg-light p-3 border-bottom d-flex justify-content-around align-items-center text-center"></div>
+                <div class="row g-0 flex-fill">
+                    <div class="col-md-4 border-end bg-white p-3 overflow-auto" id="consoleLeft" style="max-height: 450px;"></div>
+                    <div class="col-md-8 p-4 bg-light overflow-auto" id="consoleRight" style="max-height: 450px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="mdlCourseSummary">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-success text-white py-2"><h5 class="modal-title fw-bold" id="crsSummaryTitle">강좌 정산 명세서</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body p-4"><div id="crsSummaryTop" class="mb-3"></div>
+                <div class="tbl-wrap border rounded" style="max-height: 450px;">
+                    <table class="table table-sm table-striped text-center align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr><th rowspan="2">학적</th><th rowspan="2">성명</th><th rowspan="2">지원대상</th><th colspan="2">실부담 금액</th><th colspan="2" class="bg-cho3 text-dark">초3 공제</th><th colspan="2" class="bg-free text-dark">자유 공제</th><th colspan="2" class="text-warning">최종징수(자부담)</th></tr>
+                            <tr><th>수강료</th><th>교재비</th><th class="bg-cho3 text-dark">수강료</th><th class="bg-cho3 text-dark">교재비</th><th class="bg-free text-dark">수강료</th><th class="bg-free text-dark">교재비</th><th class="text-warning">수강료</th><th class="text-warning">교재비</th></tr>
+                        </thead>
+                        <tbody id="crsSummaryBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
