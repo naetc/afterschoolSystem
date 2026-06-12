@@ -16,13 +16,12 @@ let C={}, M={}, F=[], E=[], Ld={}, Hs=[];
 let f_eq='1', f_ec='ALL'; 
 let s4_filt='A', curS4Tab='STAT', s4_cFilter='ALL';
 let stuSortCol = '', stuSortAsc = false; 
-let mdlConsole, mdlCrsSummary; 
+let mdlConsole, mdlCrsSummary, mdlFreeStart; 
 let SysSet = { closedSess: {} };
 const KEY = 'bgh_v36';
 
-// 전역 분기 동기화 변수
 window.gQ = 1;
-let cUid = '', cEnrolls = [], cActiveEIdx = -1;
+let cUid = '', cEnrolls = [], cActiveEIdx = -1, curEditFreeIdx = -1;
 
 window.isQuarterLocked = function(q) { return Object.keys(SysSet.closedSess || {}).some(k => k.startsWith(q + '_')); };
 
@@ -31,7 +30,7 @@ function loadData() {
     try {
         const d = JSON.parse(raw); C = d.C || {}; M = d.M || {}; 
         SysSet = d.SysSet || { closedSess: {} }; SysSet.closedSess = SysSet.closedSess || {};
-        F = (d.F || []).map(x => ({ g: +(x.g||0), b: +(x.b||0), n: +(x.n||0), name: String(x.name||'') }));
+        F = (d.F || []).map(x => ({ g: +(x.g||0), b: +(x.b||0), n: +(x.n||0), name: String(x.name||''), startQ: +(x.startQ||1), startSess: +(x.startSess||0) }));
         E = (d.E || []).map(x => ({ q: +(x.q||1), g: +(x.g||0), b: +(x.b||0), n: +(x.n||0), name: String(x.name||''), course: String(x.course||''), cT: (x.cT != null) ? +x.cT : null, cB: (x.cB != null) ? +x.cB : null, rT: +(x.rT||0), rB: +(x.rB||0), mm: String(x.mm||''), tMemo: String(x.tMemo||''), bMemo: String(x.bMemo||''), refunds: x.refunds || [], adjusts: x.adjusts || [] }));
         Object.keys(M).forEach(dept => { if (M[dept].cnt !== undefined) { const old = M[dept]; M[dept] = {1:{...old}, 2:{...old}, 3:{...old}, 4:{...old}}; } });
     } catch(e) { console.error('로딩 오류', e); }
@@ -56,15 +55,68 @@ function updateStorageUsage() {
     el.innerHTML = `💾 로컬: <span class="text-success">${((raw.length * 2) / 1024).toFixed(1)} KB</span> / 5120 KB (${pct}%)`;
 }
 
-// ---------------------------------------------------
-// [💡 전역 분기 동기화 및 백그라운드 렌더링 엔진]
-// ---------------------------------------------------
+// 💡 1분기 기준 가상 시나리오 테스트 데이터 세팅 함수
+window.injectTestData = function() {
+    if(!confirm("⚠️ 주의!\n기존 데이터가 모두 삭제되고 다양한 시나리오가 반영된 가상의 [테스트 데이터 세트]로 덮어씌워집니다.\n(필요시 미리 '데이터 백업'을 권장합니다.)\n진행하시겠습니까?")) return;
+
+    // 1. 가상 마스터(부서) 생성
+    M = {
+        "로봇과학": {
+            1: {cnt:1, inst_m:30000, mgmt_m:2000, b:45000, unit:1, mh:"4,4,4"},
+            2: {cnt:1, inst_m:30000, mgmt_m:2000, b:45000, unit:1, mh:"4,4,4"},
+            3: {cnt:1, inst_m:30000, mgmt_m:2000, b:45000, unit:1, mh:"4,4,4"},
+            4: {cnt:1, inst_m:30000, mgmt_m:2000, b:45000, unit:1, mh:"4,4,4"}
+        },
+        "원어민영어": {
+            1: {cnt:2, inst_m:35000, mgmt_m:2000, b:15000, unit:2, mh:"8,8,8"},
+            2: {cnt:2, inst_m:35000, mgmt_m:2000, b:15000, unit:2, mh:"8,8,8"},
+            3: {cnt:2, inst_m:35000, mgmt_m:2000, b:15000, unit:2, mh:"8,8,8"},
+            4: {cnt:2, inst_m:35000, mgmt_m:2000, b:15000, unit:2, mh:"8,8,8"}
+        },
+        "방송댄스": {
+            1: {cnt:1, inst_m:28000, mgmt_m:1500, b:0, unit:1, mh:"4,4,4"},
+            2: {cnt:1, inst_m:28000, mgmt_m:1500, b:0, unit:1, mh:"4,4,4"},
+            3: {cnt:1, inst_m:28000, mgmt_m:1500, b:0, unit:1, mh:"4,4,4"},
+            4: {cnt:1, inst_m:28000, mgmt_m:1500, b:0, unit:1, mh:"4,4,4"}
+        }
+    };
+    window.regenerateC();
+
+    // 2. 가상 지원 대상자 (초3 혼합, 시작시점 교차)
+    F = [
+        {g:1, b:1, n:1, name:'김자유', startQ:1, startSess:0}, 
+        {g:3, b:2, n:5, name:'이무상', startQ:1, startSess:0}, 
+        {g:5, b:3, n:12, name:'박지원', startQ:1, startSess:1}  // 1분기 2차수부터 지원
+    ];
+
+    // 3. 가상 수강생 (할인, 환불, 중도포기 등 포함)
+    E = [];
+    const rawE = [
+        {q:1, g:1, b:1, n:1, name:'김자유', course:'로봇과학', adj:[], ref:[]}, 
+        {q:1, g:1, b:1, n:1, name:'김자유', course:'원어민영어(A)', adj:[], ref:[]},
+        {q:1, g:3, b:2, n:5, name:'이무상', course:'방송댄스', adj:[{title:'교재비면제', amtT:0, amtB:-10000}], ref:[]}, 
+        {q:1, g:3, b:1, n:15, name:'홍길동', course:'로봇과학', adj:[{title:'다자녀할인', amtT:-10000, amtB:0}], ref:[]}, 
+        {q:1, g:5, b:3, n:12, name:'박지원', course:'원어민영어(B)', adj:[], ref:[{sessIdx:0, ty:'DISEASE', ah:2, reqBk:false, rt:0, rb:0, tyNm:''}]}, 
+        {q:1, g:6, b:1, n:9, name:'최포기', course:'로봇과학', adj:[], ref:[{sessIdx:1, ty:'STUDENT', ah:1, reqBk:true, rt:0, rb:0, tyNm:''}]} 
+    ];
+
+    rawE.forEach(s => {
+        let ne = {q:s.q, g:s.g, b:s.b, n:s.n, name:s.name, course:s.course, cT:null, cB:null, rT:0, rB:0, mm:'', tMemo:'', bMemo:'', refunds:s.ref, adjusts:s.adj};
+        window.recalcEnrollment(ne);
+        E.push(ne);
+    });
+
+    SysSet = { closedSess: {} }; 
+    save();
+    alert('✅ 샘플 데이터가 성공적으로 생성되었습니다!\n1분기 기준으로 세팅된 다자녀할인, 결석, 중도포기, 시작시점 교차 테스트를 지금 바로 경험해 보세요.');
+    location.reload();
+};
+
 window.setQTab = function(q) {
     window.gQ = q; 
     [1,2,3,4].forEach(i => $('btnQTab'+i)?.classList.remove('active'));
     $('btnQTab'+q)?.classList.add('active');
     
-    // 타 스텝 Select 박스들 강제 동기화
     ['exEnQ', 's4_q', 'p_q1', 'p_qInvoice', 'p_q2'].forEach(id => { if($(id)) $(id).value = String(q); });
     f_eq = String(q);
     
@@ -85,7 +137,7 @@ window.addEventListener('DOMContentLoaded', () => {
             try {
                 const text = await readFileAsText(file); const d = JSON.parse(text);
                 C=d.C||{}; M=d.M||{}; SysSet=d.SysSet||{closedSess:{}}; SysSet.closedSess=SysSet.closedSess||{};
-                F=(d.F||[]).map(x=>({g:+(x.g??0), b:+(x.b??0), n:+(x.n??0), name:String(x.name||'')}));
+                F=(d.F||[]).map(x=>({g:+(x.g??0), b:+(x.b??0), n:+(x.n??0), name:String(x.name||''), startQ: +(x.startQ||1), startSess: +(x.startSess||0) }));
                 E=(d.E||[]).map(x=>({q:+(x.q||1), g:+(x.g??0), b:+(x.b??0), n:+(x.n??0), name:String(x.name||''), course:String(x.course||''), cT:(x.cT!=null)?+x.cT:null, cB:(x.cB!=null)?+x.cB:null, rT:+(x.rT||0), rB:+(x.rB||0), mm:String(x.mm||''), tMemo:String(x.tMemo||''), bMemo:String(x.bMemo||''), refunds:x.refunds||[], adjusts:x.adjusts||[]}));
                 Object.keys(M).forEach(dept => { if (M[dept].cnt !== undefined) { const old = M[dept]; M[dept] = {1:{...old}, 2:{...old}, 3:{...old}, 4:{...old}}; } });
                 save(); location.reload();
@@ -95,13 +147,10 @@ window.addEventListener('DOMContentLoaded', () => {
     
     if($('mdlStuConsole') && typeof bootstrap !== 'undefined') mdlConsole = new bootstrap.Modal($('mdlStuConsole'));
     if($('mdlCourseSummary') && typeof bootstrap !== 'undefined') mdlCrsSummary = new bootstrap.Modal($('mdlCourseSummary'));
+    if($('mdlFreeStart') && typeof bootstrap !== 'undefined') mdlFreeStart = new bootstrap.Modal($('mdlFreeStart'));
 
-    // 강좌 팝업 흰색 글씨 버그 영구 차단
     const crsHead = document.querySelector('#mdlCourseSummary thead');
-    if(crsHead) { 
-        crsHead.classList.remove('table-dark'); 
-        crsHead.classList.add('text-dark'); 
-    }
+    if(crsHead) { crsHead.classList.remove('table-dark'); crsHead.classList.add('text-dark'); }
 
     if($('tabStep4Btn')) { $('tabStep4Btn').addEventListener('shown.bs.tab', () => { autoRunSet(false); }); }
 
@@ -117,7 +166,6 @@ function renderStaticHeaders() {
     if($('tbInvHead')) $('tbInvHead').innerHTML = `<tr><th rowspan="2">순번</th><th rowspan="2">강좌명</th><th colspan="3">1인당 기준액</th><th colspan="4" class="table-warning">수익자 부담 (자부담)</th><th colspan="4" class="bg-cho3">초3 지원</th><th colspan="4" class="bg-free">자유수강 지원</th><th colspan="4" class="table-danger">합계 (최종집행액)</th><th rowspan="2" class="table-secondary">차액<br>(환불/조정)</th><th rowspan="2">비고(수강료)</th></tr><tr><th>수강료</th><th>강사료</th><th>수용비</th><th class="table-warning">인원</th><th class="table-warning">수강료</th><th class="table-warning">강사료</th><th class="table-warning">수용비</th><th class="bg-cho3">인원</th><th class="bg-cho3">수강료</th><th class="bg-cho3">강사료</th><th class="bg-cho3">수용비</th><th class="bg-free">인원</th><th class="bg-free">수강료</th><th class="bg-free">강사료</th><th class="bg-free">수용비</th><th class="table-danger">인원</th><th class="table-danger">수강료</th><th class="table-danger">강사료</th><th class="table-danger">수용비</th></tr>`;
 }
 
-// STEP 1 : 기초금액 산출
 window.dlSampleCourse = function() { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{부서명:'과학실험', 강좌수:2, '월 강사료':30000, '월 수용비':2000, '분기 기초 교재비':50000, 주간단위:1, 차수별시수:'4,4,4'}]), '부서마스터'); XLSX.writeFile(wb, '부서양식.xlsx'); };
 
 window.upCourse = async function() {
@@ -161,6 +209,7 @@ window.regenerateC = function() {
             for(let i=0; i<md.cnt; i++) { let nm = md.cnt>1 ? `${dept}(${String.fromCharCode(65+i)})` : dept; if (!C[nm]) C[nm]={}; C[nm][q] = { t: qI+qM, b: md.b, mh: md.mh, instTot: qI, mgmtTot: qM }; }
         });
     }); save(); renderM(); renderC();
+    if($('e_c')) $('e_c').innerHTML = '<option value="">강좌선택</option>' + Object.keys(C).map(nm => `<option value="${nm}">${nm}</option>`).join('');
 };
 
 function renderM() {
@@ -178,21 +227,59 @@ function renderC() {
     keys.forEach(nm => { const d = C[nm][window.gQ] || {t:0,b:0,mh:'',instTot:0,mgmtTot:0}; h += `<tr><td class="course-link" onclick="openCourseSummary('${nm.replace(/'/g, "\\'")}', window.gQ)">${nm}</td><td class="fw-bold">${fmt(d.t)}</td><td class="text-primary">${fmt(d.instTot)}</td><td class="text-danger">${fmt(d.mgmtTot)}</td><td>${fmt(d.b)}</td><td>${d.mh}</td></tr>`; }); $('tbCourse').innerHTML = h + '</tbody>';
 }
 
-// STEP 2 : 자유수강권
-window.dlSampleFree = function() { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{학년:1, 반:1, 번호:1, 이름:'홍길동'}]), '명단'); XLSX.writeFile(wb, '자유수강권.xlsx'); };
+window.dlSampleFree = function() { const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{학년:1, 반:1, 번호:1, 이름:'홍길동', 시작분기:1, 시작차수:1}]), '명단'); XLSX.writeFile(wb, '자유수강권.xlsx'); };
 window.upFree = async function() {
     const file = $('fileFree').files[0]; if (!file) return;
     try {
         const buf = await readFileAsArrayBuffer(file); const rows = parseXlsx(buf); let added = 0;
-        rows.forEach(r => { const nm = String(r['이름']||r['성명']||'').trim(); if (!nm) return; const g=num(r['학년']), b=num(r['반']), n=num(r['번호']), k=uid(g,b,n,nm); if (!F.some(x => uid(x.g,x.b,x.n,x.name)===k)) { F.push({g,b,n,name:nm}); added++; } });
+        rows.forEach(r => { 
+            const nm = String(r['이름']||r['성명']||'').trim(); if (!nm) return; 
+            const g=num(r['학년']), b=num(r['반']), n=num(r['번호']), k=uid(g,b,n,nm); 
+            const sQ=num(r['시작분기'])||1, sS=Math.max(0, (num(r['시작차수'])||1)-1);
+            if (!F.some(x => uid(x.g,x.b,x.n,x.name)===k)) { F.push({g,b,n,name:nm, startQ:sQ, startSess:sS}); added++; } 
+        });
         save(); renderF(); alert(`✅ 업로드 완료 (신규: ${added}건)`);
     } catch(err) { alert('❌ 에러'); } finally { $('fileFree').value = ''; if($('fileFreNm')) $('fileFreNm').textContent = '선택된 파일 없음'; }
 };
-window.addFree = function() { const nm = val('f_nm'); if (!nm) return; F.push({g:num(val('f_g')), b:num(val('f_b')), n:num(val('f_n')), name:nm}); save(); renderF(); ['f_n','f_nm'].forEach(id => { if($(id)) $(id).value = ''; }); if($('f_n')) $('f_n').focus(); };
+window.addFree = function() { 
+    const nm = val('f_nm'); if (!nm) return; 
+    F.push({g:num(val('f_g')), b:num(val('f_b')), n:num(val('f_n')), name:nm, startQ:num(val('f_sq')), startSess:num(val('f_ss'))-1}); 
+    save(); renderF(); ['f_n','f_nm'].forEach(id => { if($(id)) $(id).value = ''; }); if($('f_n')) $('f_n').focus(); 
+};
 window.delF = function(i) { F.splice(i,1); save(); renderF(); };
-function renderF() { if($('cnt_f')) $('cnt_f').textContent = F.length; if(!$('tbFree')) return; $('tbFree').innerHTML = `<thead class="table-light"><tr><th>학적</th><th>이름</th><th>지원액</th><th>관리</th></tr></thead><tbody>` + F.map((f,i) => `<tr><td>${dsp(f.g,f.b,f.n)}</td><td class="fw-bold"><span class="clickable" onclick="openStuConsole('${uid(f.g,f.b,f.n,f.name).replace(/'/g,"\\'")}')">${f.name}</span></td><td class="text-success fw-bold">600,000</td><td><button class="btn btn-sm btn-outline-danger py-0" onclick="delF(${i})">삭제</button></td></tr>`).join('') + `</tbody>`; }
 
-// STEP 3 : 수강생 관리
+window.changeFreeStart = function(i) {
+    const f = F[i];
+    curEditFreeIdx = i;
+    if($('fs_stuName')) $('fs_stuName').textContent = f.name;
+    if($('fs_q')) $('fs_q').value = f.startQ || 1;
+    if($('fs_s')) $('fs_s').value = (f.startSess || 0) + 1;
+    if(mdlFreeStart) mdlFreeStart.show();
+};
+
+window.saveFreeStart = function() {
+    if (curEditFreeIdx < 0) return;
+    F[curEditFreeIdx].startQ = num(val('fs_q'));
+    F[curEditFreeIdx].startSess = num(val('fs_s')) - 1;
+    if(mdlFreeStart) mdlFreeStart.hide();
+    save(); 
+    renderF(); 
+    autoRunSet(true); 
+    renderE();
+};
+
+function renderF() { 
+    if($('cnt_f')) $('cnt_f').textContent = F.length; if(!$('tbFree')) return; 
+    $('tbFree').innerHTML = `<thead class="table-light"><tr><th>학적</th><th>이름</th><th>지원액</th><th>지원시점 (클릭수정)</th><th>관리</th></tr></thead><tbody>` + 
+    F.map((f,i) => `<tr>
+        <td>${dsp(f.g,f.b,f.n)}</td>
+        <td class="fw-bold"><span class="clickable" onclick="openStuConsole('${uid(f.g,f.b,f.n,f.name).replace(/'/g,"\\'")}')">${f.name}</span></td>
+        <td class="text-success fw-bold">600,000</td>
+        <td><button class="btn btn-sm btn-primary rounded-pill py-0 px-3 fw-bold text-white shadow-sm border-0" onclick="changeFreeStart(${i})" title="클릭하여 지원 시점 변경" style="font-size:0.8rem;">${f.startQ}분기 ${f.startSess+1}차~ <i class="bi bi-pencil-square ms-1"></i></button></td>
+        <td><button class="btn btn-sm btn-outline-danger py-0" onclick="delF(${i})">삭제</button></td>
+    </tr>`).join('') + `</tbody>`; 
+}
+
 window.dlSampleEnroll = function() {
     const wb = XLSX.utils.book_new(); const cKeys = Object.keys(C);
     if (!cKeys.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{학년:1, 반:1, 번호:1, 이름:'홍길동', 강좌명:'강좌개설필요'}]), '명단'); else cKeys.forEach(c => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{학년:'', 반:'', 번호:'', 이름:'', 비고:''}]), c.substring(0, 31)));
@@ -265,7 +352,6 @@ function renderE() {
     }); $('tbEnroll').innerHTML = h + '</tbody>';
 }
 
-// 💡 실부담금 산출 코어 엔진
 window.getSessSplit = function(tAmt, sIdx, mhArr) {
     if (tAmt <= 0) return 0; const totalHours = mhArr.reduce((a,b)=>a+b, 0);
     if (sIdx === mhArr.length - 1) { let pSum = 0; for(let j=0; j<sIdx; j++) pSum += Math.floor((tAmt * (mhArr[j]/totalHours))/10)*10; return tAmt - pSum; }
@@ -313,8 +399,13 @@ window.openStuConsole = function(uidStr) {
 };
 
 window.renderConsole = function() {
-    const L = Ld[cUid] || { cB:0, fB:0 }; let totActual = 0; cEnrolls.forEach(i => totActual += (E[i].cT||0) + (E[i].cB||0));
-    $('consoleTop').innerHTML = `<div><span class="small text-muted">초3 잔액</span><h5 class="text-primary fw-bold mb-0">${fmt(L.cB)}원</h5></div><div><span class="small text-muted">자유 잔액</span><h5 class="text-success fw-bold mb-0">${fmt(L.fB)}원</h5></div><div><span class="small text-muted">분기 총 실부담액</span><h5 class="text-danger fw-bold mb-0">${fmt(totActual)}원</h5></div>`;
+    const L = Ld[cUid] || { cB:0, fB:0, isC: false, isF: false }; 
+    let totActual = 0; cEnrolls.forEach(i => totActual += (E[i].cT||0) + (E[i].cB||0));
+    
+    const txtC = L.isC ? `${fmt(L.cB)}원` : `<span class="text-muted fs-6 fw-normal">대상아님</span>`;
+    const txtF = L.isF ? `${fmt(L.fB)}원` : `<span class="text-muted fs-6 fw-normal">대상아님</span>`;
+
+    $('consoleTop').innerHTML = `<div><span class="small text-muted">초3 잔액</span><h5 class="text-primary fw-bold mb-0">${txtC}</h5></div><div><span class="small text-muted">자유 잔액</span><h5 class="text-success fw-bold mb-0">${txtF}</h5></div><div><span class="small text-muted">분기 총 실부담액</span><h5 class="text-danger fw-bold mb-0">${fmt(totActual)}원</h5></div>`;
 
     let hLeft = '';
     cEnrolls.forEach(i => {
@@ -328,7 +419,6 @@ window.renderConsole = function() {
 
     let hRight = `<h6 class="fw-bold text-dark border-bottom pb-2">[${q}분기] ${e.course} 실부담금 명세 ${locked?'<span class="badge bg-danger ms-2">🔒 마감됨</span>':''}</h6>`;
     
-    // 💡 2-Track 요약 테이블
     hRight += `<table class="table table-sm table-bordered text-center align-middle mb-3 bg-white" style="font-size:0.85rem;">
         <thead class="table-light">
             <tr><th>구분</th><th>기초 금액</th><th>분기 조정(할인)</th><th>누적 환불</th><th class="table-primary">최종 실부담금</th></tr>
@@ -423,9 +513,6 @@ window.openCourseSummary = function(cName, q) {
     $('crsSummaryBody').innerHTML = h; mdlCrsSummary.show();
 };
 
-// =====================================================
-// STEP 4 : 정산 엔진 (타겟 '실부담 금액')
-// =====================================================
 window.setFilt = function(f) { 
     s4_filt = f; 
     if($('fBtnA')) $('fBtnA').className = f === 'A' ? 'btn btn-sm btn-dark fw-bold' : 'btn btn-sm btn-outline-dark';
@@ -438,22 +525,74 @@ window.autoRunSet = function(silent = false) {
     Ld = {}; Hs = []; 
     if (!E.length) { if (!silent) renderSetTabs(); return; }
     
-    const freeSet = new Set(F.map(f => uid(f.g,f.b,f.n,f.name)));
+    const freeMap = new Map();
+    F.forEach(f => freeMap.set(uid(f.g,f.b,f.n,f.name), f));
+
     E.forEach(e => {
-        const id  = uid(e.g,e.b,e.n,e.name); const isF = freeSet.has(id), isC = String(e.g) === '3';
-        if (!Ld[id]) Ld[id] = { id, dp: dsp(e.g,e.b,e.n), nm: e.name, isF, isC, cB: 0, fB: isF ? 600000 : 0, ty: (isF?'자유':'')+(isC?'초3':'')||'일반', enrolls: [] };
+        const id  = uid(e.g,e.b,e.n,e.name); 
+        const fData = freeMap.get(id);
+        const isF = !!fData, isC = String(e.g) === '3';
+        if (!Ld[id]) Ld[id] = { id, dp: dsp(e.g,e.b,e.n), nm: e.name, isF, isC, cB: 0, fB: isF ? 600000 : 0, fData, ty: (isF?'자유':'')+(isC?'초3':'')||'일반', enrolls: [] };
         Ld[id].enrolls.push(e);
     });
+    
     Object.values(Ld).forEach(L => { if (L.isC) { const qs = [...new Set(L.enrolls.map(e=>e.q))]; if (qs.some(q=>q<=2)) L.cB += 250000; if (qs.some(q=>q>=3)) L.cB += 250000; } });
+    
     Object.values(Ld).forEach(L => {
         L.enrolls.sort((a,b)=>a.q-b.q).forEach(e => {
             const bs = C[e.course]?.[e.q] || {t:0,b:0};
-            let remT = (e.cT !== null ? e.cT : bs.t), remB = (e.cB !== null ? e.cB : bs.b);
-            let res = { tc: 0, bc: 0, tf: 0, bf: 0 };
-            const ded = (amt, cho) => { const av = cho ? L.cB : L.fB; const d = Math.min(amt, av); if (cho) L.cB -= d; else L.fB -= d; return d; };
-            if (L.isC) { res.tc = ded(remT, true); remT -= res.tc; res.bc = ded(remB, true); remB -= res.bc; }
-            if (L.isF) { res.tf = ded(remT, false); remT -= res.tf; res.bf = ded(remB, false); remB -= res.bf; }
-            Hs.push({ q:e.q, id:L.id, dp:L.dp, nm:L.nm, c:e.course, e, origT:bs.t, origB:bs.b, sT:e.cT, sB:e.cB, tc:res.tc, bc:res.bc, tf:res.tf, bf:res.bf, finT:remT, finB:remB, sTo:remT+remB, isF:L.isF, isC:L.isC, g:e.g, ban:e.b, num:e.n });
+            const mhArr = (bs.mh || '4,4,4').split(',').map(x=>num(x)).filter(x=>x>0);
+            const totAdjT = e.adjusts.reduce((s,a)=>s+a.amtT, 0);
+            const totAdjB = e.adjusts.reduce((s,a)=>s+a.amtB, 0);
+
+            let q_tc = 0, q_bc = 0, q_tf = 0, q_bf = 0, q_finT = 0, q_finB = 0;
+            let sessDetails = [];
+
+            for(let sIdx = 0; sIdx < mhArr.length; sIdx++) {
+                let bT = getSessSplit(bs.t, sIdx, mhArr);
+                let bB = getSessSplit(bs.b, sIdx, mhArr);
+                let aT = getSessSplit(totAdjT, sIdx, mhArr);
+                let aB = getSessSplit(totAdjB, sIdx, mhArr);
+                let rT = e.refunds.filter(r=>r.sessIdx === sIdx).reduce((s,r)=>s+r.rt, 0);
+                let rB = e.refunds.filter(r=>r.sessIdx === sIdx).reduce((s,r)=>s+r.rb, 0);
+
+                let sRemT = Math.max(0, bT + aT - rT);
+                let sRemB = Math.max(0, bB + aB - rB);
+
+                let s_tc = 0, s_bc = 0, s_tf = 0, s_bf = 0;
+                const ded = (amt, cho) => { const av = cho ? L.cB : L.fB; const d = Math.min(amt, av); if (cho) L.cB -= d; else L.fB -= d; return d; };
+
+                if (L.isC) {
+                    s_tc = ded(sRemT, true); sRemT -= s_tc;
+                    s_bc = ded(sRemB, true); sRemB -= s_bc;
+                }
+
+                if (L.isF) {
+                    const sQ = L.fData.startQ || 1;
+                    const sS = L.fData.startSess || 0;
+                    let isEligible = false;
+                    if (e.q > sQ) isEligible = true;
+                    else if (e.q === sQ && sIdx >= sS) isEligible = true;
+
+                    if (isEligible) {
+                        s_tf = ded(sRemT, false); sRemT -= s_tf;
+                        s_bf = ded(sRemB, false); sRemB -= s_bf;
+                    }
+                }
+
+                q_tc += s_tc; q_bc += s_bc;
+                q_tf += s_tf; q_bf += s_bf;
+                q_finT += sRemT; q_finB += sRemB;
+
+                sessDetails.push({ sIdx, tc:s_tc, bc:s_bc, tf:s_tf, bf:s_bf, finT:sRemT, finB:sRemB, bT });
+            }
+
+            Hs.push({ 
+                q:e.q, id:L.id, dp:L.dp, nm:L.nm, c:e.course, e, origT:bs.t, origB:bs.b, 
+                sT:e.cT!==null?e.cT:bs.t, sB:e.cB!==null?e.cB:bs.b, 
+                tc:q_tc, bc:q_bc, tf:q_tf, bf:q_bf, finT:q_finT, finB:q_finB, 
+                sessDetails, isF:L.isF, isC:L.isC, g:e.g, ban:e.b, num:e.n 
+            });
         });
     }); if (!silent) renderSetTabs();
 };
@@ -513,18 +652,15 @@ window.renderSetTabs = function() {
         return;
     }
 
-    // ① 통계
     let sH = ''; const st = {}; hList.forEach(h => { if (!st[h.c]) st[h.c] = {cnt:0,sT:0,sB:0,tc:0,bc:0,tf:0,bf:0,fT:0,fB:0}; const s = st[h.c]; s.cnt++; s.sT+=h.sT; s.sB+=h.sB; s.tc+=h.tc; s.bc+=h.bc; s.tf+=h.tf; s.bf+=h.bf; s.fT+=h.finT; s.fB+=h.finB; });
     Object.keys(st).sort().forEach(c => { const s = st[c]; sH += `<tr><td class="course-link" onclick="openCourseSummary('${c.replace(/'/g, "\\'")}', ${qVal})">${c}</td><td class="table-warning fw-bold">${s.cnt}</td><td class="table-warning">${fmt(s.sT)}</td><td class="table-warning">${fmt(s.sB)}</td><td class="bg-cho3 text-primary">${fmt(s.tc)}</td><td class="bg-cho3">${fmt(s.bc)}</td><td class="bg-free text-success">${fmt(s.tf)}</td><td class="bg-free">${fmt(s.bf)}</td><td class="table-danger fw-bold">${fmt(s.fT)}</td><td class="table-danger text-danger fw-bold">${fmt(s.fB)}</td></tr>`; });
     sH += `<tr class="table-dark fw-bold sticky-total-row"><td colspan="2" class="text-warning">총 합계</td><td class="text-warning">${fmt(hList.reduce((s,h)=>s+h.sT,0))}</td><td class="text-warning">${fmt(hList.reduce((s,h)=>s+h.sB,0))}</td><td class="text-primary">${fmt(hList.reduce((s,h)=>s+h.tc,0))}</td><td class="text-primary">${fmt(hList.reduce((s,h)=>s+h.bc,0))}</td><td class="text-success">${fmt(hList.reduce((s,h)=>s+h.tf,0))}</td><td class="text-success">${fmt(hList.reduce((s,h)=>s+h.bf,0))}</td><td class="text-danger">${fmt(hList.reduce((s,h)=>s+h.finT,0))}</td><td class="text-danger">${fmt(hList.reduce((s,h)=>s+h.finB,0))}</td></tr>`;
     if($('tbStat')) $('tbStat').innerHTML = sH;
 
-    // ② 학생별
     let stuH = ''; const lMap = {}; hList.forEach(h => { if (!lMap[h.id]) lMap[h.id] = {L: Ld[h.id], items:[]}; lMap[h.id].items.push(h); });
     Object.values(lMap).forEach(grp => { grp.items.forEach((h, idx) => { stuH += `<tr>`; if (idx === 0) stuH += `<td rowspan="${grp.items.length}">${grp.L.dp}</td><td rowspan="${grp.items.length}" class="fw-bold"><span class="clickable" onclick="openStuConsole('${grp.L.id}')">${grp.L.nm}</span></td><td rowspan="${grp.items.length}">${grp.L.ty}</td><td rowspan="${grp.items.length}">${fmt(grp.L.cB)}</td><td rowspan="${grp.items.length}">${fmt(grp.L.fB)}</td>`; stuH += `<td>${h.q}</td><td class="course-link" onclick="openCourseSummary('${h.c.replace(/'/g, "\\'")}', ${h.q})">${h.c}</td><td>${fmt(h.sT)}</td><td>${fmt(h.sB)}</td><td class="bg-cho3">${fmt(h.tc)}</td><td class="bg-cho3">${fmt(h.bc)}</td><td class="bg-free">${fmt(h.tf)}</td><td class="bg-free">${fmt(h.bf)}</td><td class="text-danger fw-bold">${fmt(h.finT)}</td><td class="text-danger fw-bold">${fmt(h.finB)}</td></tr>`; }); });
     if($('tbStuDtl')) $('tbStuDtl').innerHTML = stuH;
 
-    // ③ 강좌별
     if($('cFilterBtnGroup')) { 
         let bh = `<button class="btn btn-sm ${s4_cFilter==='ALL'?'btn-primary fw-bold':'btn-outline-secondary'}" onclick="s4_cFilter='ALL';renderSetTabs();">전체강좌</button>`; 
         Object.keys(C).forEach(c => {
@@ -571,7 +707,6 @@ window.renderEduSheet = function(sn, el) {
     $('prev_edu').innerHTML = h;
 };
 
-// 엑셀 추출: 에듀파인
 window.exEdu = function() {
     const q = window.gQ; if (!eduDataCached.length) return alert('추출할 내역이 없습니다.');
     const wb = XLSX.utils.book_new(); const sg = {};
@@ -580,7 +715,6 @@ window.exEdu = function() {
     XLSX.writeFile(wb, `${q}분기_에듀파인_수납요구서.xlsx`);
 };
 
-// 💡 청구서 산출 엔진 (지분율 기반 수용비 안분 로직 적용)
 function getInvoiceData(q, sVal) {
     const ls = Hs.filter(h => h.q === q);
     const grouped = {};
@@ -601,36 +735,23 @@ function getInvoiceData(q, sVal) {
         } else {
             const sIdx = num(sVal) - 1;
             if (sIdx >= mhArr.length) return;
-            baseT = getSessSplit(h.origT, sIdx, mhArr);
+            
+            baseT = h.sessDetails[sIdx].bT;
             if (baseT <= 0) return;
             baseM = getSessSplit(cd.mgmtTot, sIdx, mhArr);
             baseI = baseT - baseM;
-
-            const aT = Math.floor((h.e.adjusts.reduce((s,a)=>s+a.amtT, 0) / mhArr.length)/10)*10;
-            let grossSessAmt = baseT + aT;
-            let sRef = (h.e.refunds||[]).filter(r=>r.sessIdx===sIdx).reduce((s,r)=>s+r.rt, 0);
-            let actualSessAmt = Math.max(0, grossSessAmt - sRef);
 
             let closedSnapshot = null; if (SysSet.closedSess && SysSet.closedSess[`${q}_${sIdx}`]) closedSnapshot = SysSet.closedSess[`${q}_${sIdx}`][h.id];
 
             if (closedSnapshot) {
                 sSelf = closedSnapshot.selfAmt || 0; sCho = closedSnapshot.cho3Amt || 0; sFree = closedSnapshot.freeAmt || 0;
             } else {
-                sSelf = getSessSplit(h.finT, sIdx, mhArr); sCho = getSessSplit(h.tc, sIdx, mhArr); sFree = getSessSplit(h.tf, sIdx, mhArr);
-                let cTot = sSelf + sCho + sFree;
-                if (cTot > actualSessAmt) {
-                    let toDed = cTot - actualSessAmt;
-                    if (toDed>0 && sSelf>0) { const d=Math.min(toDed, sSelf); sSelf-=d; toDed-=d; }
-                    if (toDed>0 && sCho>0) { const d=Math.min(toDed, sCho); sCho-=d; toDed-=d; }
-                    if (toDed>0 && sFree>0) { const d=Math.min(toDed, sFree); sFree-=d; toDed-=d; }
-                } else if (cTot < actualSessAmt) {
-                    let toAdd = actualSessAmt - cTot;
-                    if (h.finT>0 || (h.tc===0 && h.tf===0)) sSelf+=toAdd; else if (h.tc>0) sCho+=toAdd; else sFree+=toAdd;
-                }
+                sSelf = h.sessDetails[sIdx].finT;
+                sCho = h.sessDetails[sIdx].tc;
+                sFree = h.sessDetails[sIdx].tf;
             }
         }
 
-        // 💡 지분율 기반 수용비 안분 핵심 로직
         let totF = sSelf + sCho + sFree;
         let mSelf=0, mCho=0, mFree=0, iSelf=0, iCho=0, iFree=0;
 
@@ -699,7 +820,6 @@ window.renderPreviewInvoice = function() {
     if($('prev_inv')) $('prev_inv').innerHTML = h;
 };
 
-// 💡 엑셀 추출: 교육비 청구서
 window.exInvoice = function() {
     const q = window.gQ, sVal = val('p_sInvoice'); const data = getInvoiceData(q, sVal);
     if (!data.length) return alert('출력할 데이터가 없습니다.');
@@ -727,7 +847,6 @@ window.exInvoice = function() {
     XLSX.writeFile(wb, `${q}분기_${sVal==='ALL'?'전체합산':sVal+'차'}_교육비청구서.xlsx`);
 };
 
-// 엑셀 추출: 환불 내역
 window.exRef = function() {
     const q = window.gQ;
     const data = E.filter(e => e.q === q && (e.rT>0 || e.rB>0 || (e.adjusts&&e.adjusts.length>0))).map(e => ({ q: e.q, c: e.course, dp: dsp(e.g,e.b,e.n), nm: e.name, g: e.g, b: e.b, n: e.n, rT: e.rT, rB: e.rB, cT: e.cT, cB: e.cB, mm: e.mm }));
@@ -744,7 +863,6 @@ window.renderPreviewRef = function() {
     if($('prev_ref')) $('prev_ref').innerHTML = h;
 };
 
-// 엑셀 추출: 정산 명단
 function getRosterData(q) {
     const tg = val('p_tg'), so = val('p_so');
     let rows = Hs.filter(h => h.q === q).map(h => {
