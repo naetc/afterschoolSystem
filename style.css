@@ -9,9 +9,10 @@ body { background: #f8f9fa; font-size: 0.9rem; font-family: 'Malgun Gothic', san
 .table td { text-align: center; vertical-align: middle; padding: 0.35rem; }
 .bg-cho3 { background: #e8f4f8 !important; }
 .bg-free { background: #eef8e8 !important; }
-.clickable { cursor: pointer; color: #0d6efd; text-decoration: underline; font-weight: bold; }
+.clickable { cursor: pointer; color: #0d6efd; text-decoration: underline; font-weight: bold; transition: color 0.1s; }
 .clickable:hover { color: #0a58ca; }
-.fmt-num { text-align: right; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; }
+.fmt-num { text-align: right; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; transition: border-color 0.2s; }
+.fmt-num:focus { border-color: #0d6efd; outline: none; box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25); }
 
 /* Sticky Header & Total Rows */
 .sticky-total-row th, .sticky-total-row td { position: sticky; top: var(--sticky-top, 40px); z-index: 9; background: #fff3cd !important; box-shadow: inset 0 -2px 0 #ccc; border-bottom: 2px solid #ffc107 !important; }
@@ -29,9 +30,7 @@ body { background: #f8f9fa; font-size: 0.9rem; font-family: 'Malgun Gothic', san
 .locked-row { background-color: #f1f3f5 !important; opacity: 0.7; }
 .btn-qtab { font-weight: bold; border-radius: 0; border: 1px solid #0d6efd; color: #0d6efd; background: white; }
 .btn-qtab.active { background: #0d6efd; color: white; }
-.course-link { color: #198754; text-decoration: underline; cursor: pointer; font-weight: bold; }
+.course-link { color: #198754; text-decoration: underline; cursor: pointer; font-weight: bold; transition: color 0.1s; }
 .course-link:hover { color: #146c43; }
-
-/* 5스텝 전용 탭 스타일 */
-.sheet-pill { font-size: 0.75rem; padding: 4px 12px; border-radius: 15px; margin-right: 5px; margin-bottom: 5px; border: 1px solid #dee2e6; background: #fff; cursor: pointer; }
+.sheet-pill { font-size: 0.75rem; padding: 4px 12px; border-radius: 15px; margin-right: 5px; margin-bottom: 5px; border: 1px solid #dee2e6; background: #fff; cursor: pointer; transition: all 0.2s; }
 .sheet-pill.active { background: #198754; color: #fff; border-color: #198754; font-weight: bold; }
